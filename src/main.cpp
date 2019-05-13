@@ -17,12 +17,6 @@ unsigned long interval = 30000;
 GSMSim gsm(RX, TX);
 DHT dht(DHTPIN, DHTTYPE);
 
-void setup() {
-  Serial.begin(BAUD);
-  gsm.start(BAUD);
-  dht.begin();
-}
-
 String urlencode(String str)
 {
     int c;
@@ -58,6 +52,12 @@ void sendMessage(JsonObject data)
   Serial.println(gsm.gprsCloseConn()); 
 }
 
+void setup() {
+  Serial.begin(BAUD);
+  gsm.start(BAUD);
+  dht.begin();
+}
+
 void loop() {
 
   if(millis() > lastMillis + interval)
@@ -68,15 +68,16 @@ void loop() {
 
     // create an object
     JsonObject object = doc.to<JsonObject>();
-    object["tmp"] = dht.readTemperature();
-    object["hum"] = dht.readHumidity();
-    object["hix"] = dht.computeHeatIndex(object["tmp"], object["hum"], false);
-    object["lat"] = 0.0;
-    object["lon"] = 0.0;
-    object["hdg"] = 0.0;
-    object["sog"] = 0.0;
-    object["qos"] = gsm.signalQuality();
-    object["upt"] = millis();
+    object["tmp"] = dht.readTemperature();        // Temperature
+    object["wtp"] = 0.0;                          // Water temperature
+    object["hum"] = dht.readHumidity();           // Humidity
+    object["hix"] = dht.computeHeatIndex(object["tmp"], object["hum"], false); // Heat index
+    object["lat"] = 0.0;                          // Latitude
+    object["lon"] = 0.0;                          // Longitude
+    object["hdg"] = 0.0;                          // Heading
+    object["sog"] = 0.0;                          // Speed over ground
+    object["qos"] = gsm.signalQuality();          // GPRS signal quality
+    object["upt"] = millis();                     // Uptime
 
     sendMessage(object);
     lastMillis = millis();
