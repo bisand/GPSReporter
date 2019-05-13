@@ -41,14 +41,14 @@ String urlencode(String str)
 
 void sendMessage(JsonObject data)
 {
-  String message = "";
+  String message;
   serializeJson(data, message);
 
   String url = "https://bogenhuset.no/nodered/test";
   Serial.println(url);
   Serial.println(gsm.gprsConnectBearer());
   Serial.println(gsm.gprsGetIP()); // String ip address.
-  Serial.println(gsm.gprsHTTPPost(url.c_str(), message));
+  Serial.println(gsm.gprsHTTPPost(url, message, "application/json"));
   Serial.println(gsm.gprsCloseConn()); 
 }
 
@@ -57,8 +57,9 @@ void setup() {
   gsm.start(BAUD);
   dht.begin();
 
-  gsm.timeSetServer(2);
-  gsm.timeSyncFromServer();
+  // Serial.println(gsm.timeSetServer(2));
+  // Serial.println(gsm.timeSyncFromServer());
+  // Serial.println(gsm.timeGetRaw());
 }
 
 void loop() {
@@ -66,7 +67,7 @@ void loop() {
   if(millis() > lastMillis + interval)
   {
     // allocate the memory for the document
-    const size_t CAPACITY = JSON_OBJECT_SIZE(10);
+    const size_t CAPACITY = JSON_OBJECT_SIZE(11);
     StaticJsonDocument<CAPACITY> doc;
 
     // create an object
