@@ -56,6 +56,9 @@ void setup() {
   Serial.begin(BAUD);
   gsm.start(BAUD);
   dht.begin();
+
+  gsm.timeSetServer(2);
+  gsm.timeSyncFromServer();
 }
 
 void loop() {
