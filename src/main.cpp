@@ -12,7 +12,7 @@
 #define BAUD 19200
 
 unsigned long lastMillis = 0;
-unsigned long interval = 15000;
+unsigned long interval = 30000;
 
 GSMSim gsm(RX, TX);
 DHT dht(DHTPIN, DHTTYPE);
