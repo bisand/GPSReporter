@@ -68,12 +68,12 @@ void loop() {
 
     // create an object
     JsonObject object = doc.to<JsonObject>();
-    object["t"] = dht.readTemperature();
-    object["h"] = dht.readHumidity();
-    object["hi"] = dht.computeHeatIndex(object["t"], object["h"], false);
+    object["tmp"] = dht.readTemperature();
+    object["hum"] = dht.readHumidity();
+    object["hix"] = dht.computeHeatIndex(object["tmp"], object["hum"], false);
     object["lat"] = 0.0;
     object["lon"] = 0.0;
-    object["hd"] = 0.0;
+    object["hdg"] = 0.0;
     object["sog"] = 0.0;
     object["qos"] = gsm.signalQuality();
     object["upt"] = millis();
