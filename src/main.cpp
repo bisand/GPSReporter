@@ -17,19 +17,6 @@ unsigned long interval = 15000;
 GSMSim gsm(RX, TX);
 DHT dht(DHTPIN, DHTTYPE);
 
-struct gprsData
-{
-  float temperature = 0.0;
-  float humidity = 0.0;
-  float heatIndex = 0.0;
-  float latitude = 0.0;
-  float longitude = 0.0;
-  float heading = 0.0;
-  float SOG = 0.0;
-  int signalQuality = 0;
-  unsigned long uptime = 0;
-};
-
 void setup() {
   Serial.begin(BAUD);
   gsm.start(BAUD);
@@ -57,27 +44,6 @@ String urlencode(String str)
     return encodedString;
     
 }
-
-// void sendMessage2(const String message)
-// {
-  // String url = "\"URL\",\"bogenhuset.no/nodered/iottest?message="+message+"\"";
-
-  // SIM.ipBearer(SET, "3,1,\"Contype\",\"GPRS\"");    // Configure profile 1 connection as "GPRS"
-  // SIM.ipBearer(SET, "3,1,\"APN\",\"telenor\"");    // Set profile 1 access point name to "internet"
-  // SIM.ipBearer(SET, "1,1");                         // Open GPRS connection on profile 1
-  // SIM.ipBearer(SET, "2,1");                         // Display IP address of profile 1
-  // SIM.httpInit(EXE);                                // Initialize HTTP functionality
-  // SIM.httpSsl(SET, "1");
-  // SIM.httpParams(SET, "\"CID\",1");                 // Choose profile 1 as HTTP channel
-  // SIM.httpParams(SET, url.c_str());   // Set URL to www.sim.com
-  // SIM.httpAction(SET, "0");                         // Get the webpage
-  // while(!SIM.available()) {;}                       // Wait until the webpage has arrived
-  // SIM.httpRead(EXE);                                // Send the received webpage to Arduino
-  // SIM.httpEnd(EXE);                                 // Terminate HTTP functionality
-  // SIM.ipBearer(SET, "0,1");                         // Close GPRS connection on profile 1
-
-  // Serial.println("Message sent.");
-// }
 
 void sendMessage(JsonObject data)
 {
