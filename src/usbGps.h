@@ -5,6 +5,7 @@
 #include <SPI.h>
 
 #define READ_DELAY 100
+#define DATA_BUFFER_SIZE 64
 
 class PLAsyncOper : public CDCAsyncOper
 {
@@ -14,8 +15,16 @@ public:
 
 class UsbGps
 {
+private:
+        bool _usbReady;
+        char _data[DATA_BUFFER_SIZE*2];
+        byte _dataIdx;
+
 public:
-        String readGpsData();
+        char rmcData[DATA_BUFFER_SIZE];
+        byte rcmDataIdx;
+        void setup();
+        void loop();
 };
 
 USB Usb;
@@ -52,12 +61,27 @@ uint8_t PLAsyncOper::OnInit(ACM *pacm)
         return rcode;
 }
 
-String UsbGps::readGpsData()
+void UsbGps::setup()
 {
+        _usbReady = true;
+        if (Usb.Init() == -1)
+        {
+                _usbReady = false;
+                Serial.println(F("Usb shield did not start."));
+                return;
+        }
+        Serial.println(F("Usb shield successfully started."));
+}
+
+void UsbGps::loop()
+{
+        if(!_usbReady)
+                return;
+
         uint8_t rcode;
-        uint8_t buf[64]; //serial buffer equals Max.packet size of bulk-IN endpoint
-        uint16_t rcvd = 64;
-        String result = "";
+        uint16_t rcvd = DATA_BUFFER_SIZE;
+        uint8_t buf[DATA_BUFFER_SIZE]; //serial buffer equals Max.packet size of bulk-IN endpoint
+        char ch;
 
         Usb.Task();
 
@@ -74,10 +98,32 @@ String UsbGps::readGpsData()
                         { //more than zero bytes received
                                 for (uint16_t i = 0; i < rcvd; i++)
                                 {
-                                        result += (char)buf[i];
+                                        ch = (char)buf[i];
+                                        if (ch == '$')
+                                        {
+                                                _dataIdx = 0;
+                                                _data[_dataIdx] = ch;
+                                        }
+                                        else
+                                        {
+                                                _data[++_dataIdx]= ch;
+                                        }
+                                        if (ch == '\n')
+                                        {
+                                                _dataIdx = 0;
+                                                if (strstr(_data, "$GPRMC") != NULL || strstr(_data, "$GNRMC") != NULL || strstr(_data, "$GLRMC") != NULL)
+                                                {
+                                                        strcpy(rmcData, _data);
+                                                        Serial.println(rmcData);
+                                                        _data[_dataIdx] = 0;                                                        
+                                                }
+                                                else
+                                                {
+                                                        _data[_dataIdx] = 0;
+                                                }
+                                        }
                                 }
                         }
                 }
         }
-        return result;
 }

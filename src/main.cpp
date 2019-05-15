@@ -1,10 +1,9 @@
-#include <GSMSim.h>
 #include "DHT.h"
-#include <ArduinoJson.h>
 #include "usbGps.h"
+#include "GPRSLib.h"
 
-#define RX 10
-#define TX 11
+#define RX 7
+#define TX 8
 #define RESET 2
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
@@ -12,63 +11,70 @@
 
 unsigned long lastMillis = 0;
 unsigned long interval = 30000;
-String gpsData = "";
+bool usbReady = true;
+char json[128];
 
-GSMSim gsm(RX, TX);
+//GSMSim gsm(RX, TX);
+GPRSLib gprs;
 DHT dht(DHTPIN, DHTTYPE);
 
-void sendMessage(JsonObject data)
+void sendData(const char *data)
 {
-  String message;
-  serializeJson(data, message);
-
-  String url = "https://bogenhuset.no/nodered/test";
-  Serial.println(url);
-  Serial.println(gsm.gprsConnectBearer());
-  Serial.println(gsm.gprsGetIP()); // String ip address.
-  Serial.println(gsm.gprsHTTPPost(url, message, "application/json"));
-  Serial.println(gsm.gprsCloseConn());
+  char ipAddress[16];
+  char httpResult[32];
+  Serial.println(gprs.connectBearer());
+  gprs.gprsGetIP(ipAddress);
+  Serial.println(ipAddress);
+  gprs.gprsHTTPPost("https://bogenhuset.no/nodered/test", data, "application/json", httpResult);
+  Serial.println(httpResult);
+  Serial.println(gprs.gprsCloseConn());
 }
 
 void setup()
 {
   Serial.begin(BAUD);
-  gsm.start(BAUD);
+//  gsm.start(BAUD);
+  gprs.setup(BAUD);
   dht.begin();
-
-  if (Usb.Init() == -1)
-  {
-    Serial.println(F("Usb shield did not start"));
-  }
+  usbGps.setup();
 }
 
 void loop()
 {
-  gpsData += usbGps.readGpsData();
+  usbGps.loop();
 
   if (millis() > lastMillis + interval)
   {
-    String tmpGpsData = gpsData;
-    gpsData = "";
+    Serial.print(usbGps.rmcData);
 
-    // allocate the memory for the document
-    const size_t CAPACITY = JSON_OBJECT_SIZE(20);
-    StaticJsonDocument<CAPACITY> doc;
+    // Obtain values
+    float temperature = dht.readTemperature();
+    float waterTemperature = 0.0;
+    float humidity = dht.readHumidity();
+    float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
+    int qos = 0; //gsm.signalQuality();
+    unsigned long uptime = millis();
+    float latitude = 0.0;
+    float longitude = 0.0;
+    float speed = 0.0;
+    float heading = 0.0;
 
-    // create an object
-    JsonObject object = doc.to<JsonObject>();
-    object["tmp"] = dht.readTemperature();                                     // Temperature
-    object["wtp"] = 0.0;                                                       // Water temperature
-    object["hum"] = dht.readHumidity();                                        // Humidity
-    object["hix"] = dht.computeHeatIndex(object["tmp"], object["hum"], false); // Heat index
-    object["lat"] = 0.0;                                                       // Latitude
-    object["lon"] = 0.0;                                                       // Longitude
-    object["hdg"] = 0.0;                                                       // Heading
-    object["sog"] = 0.0;                                                       // Speed over ground
-    object["qos"] = gsm.signalQuality();                                       // GPRS signal quality
-    object["upt"] = millis();                                                  // Uptime
+    // // Create Json string.
+    strcpy(json, "{}");
+    // json += "\"tmp\":" + String(temperature);       // Temperature
+    // json += ",\"wtp\":" + String(waterTemperature); // Water temperature
+    // json += ",\"hum\":" + String(humidity);         // Humidity
+    // json += ",\"hix\":" + String(heatIndex);        // Heat index
+    // json += ",\"lat\":" + String(latitude);         // Latitude
+    // json += ",\"lon\":" + String(longitude);        // Longitude
+    // json += ",\"hdg\":" + String(heading);          // Heading
+    // json += ",\"sog\":" + String(speed);            // Speed over ground
+    // json += ",\"qos\":" + String(qos);              // GPRS signal quality
+    // json += ",\"upt\":" + String(uptime);           // Uptime
+    //json += "}";
 
-    sendMessage(object);
+    Serial.println(json);
+    sendData(json);
     lastMillis = millis();
   }
 }
