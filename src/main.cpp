@@ -10,7 +10,7 @@
 #define BAUD 19200
 
 unsigned long lastMillis = 0;
-unsigned long interval = 30000;
+unsigned long interval = 15000;
 bool usbReady = true;
 char json[128];
 
@@ -22,12 +22,13 @@ void sendData(const char *data)
 {
   char ipAddress[16];
   char httpResult[32];
-  Serial.println(gprs.connectBearer());
+
+  gprs.connectBearer("telenor");
   gprs.gprsGetIP(ipAddress);
   Serial.println(ipAddress);
-  gprs.gprsHTTPPost("https://bogenhuset.no/nodered/test", data, "application/json", httpResult);
+  gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, 32);
   Serial.println(httpResult);
-  Serial.println(gprs.gprsCloseConn());
+  gprs.gprsCloseConn();
 }
 
 void setup()
@@ -36,23 +37,23 @@ void setup()
 //  gsm.start(BAUD);
   gprs.setup(BAUD);
   dht.begin();
-  usbGps.setup();
+  //usbGps.setup();
 }
 
 void loop()
 {
-  usbGps.loop();
+  //usbGps.loop();
 
   if (millis() > lastMillis + interval)
   {
-    Serial.print(usbGps.rmcData);
+    //Serial.print(usbGps.rmcData);
 
     // Obtain values
     float temperature = dht.readTemperature();
     float waterTemperature = 0.0;
     float humidity = dht.readHumidity();
     float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
-    int qos = 0; //gsm.signalQuality();
+    int qos = 0; gprs.signalQuality();
     unsigned long uptime = millis();
     float latitude = 0.0;
     float longitude = 0.0;
