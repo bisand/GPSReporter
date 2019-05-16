@@ -15,7 +15,8 @@ private:
 
     int _readSerial(char *buffer, unsigned int bufferSize, int startIndex = 0, unsigned int timeout = TIME_OUT_READ_SERIAL);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
-
+    bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output);
+    void _trimChar(char *buffer, char chr);
 public:
     uint8_t RX_PIN;
     uint8_t TX_PIN;
