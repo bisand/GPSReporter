@@ -1,9 +1,8 @@
 #include <Arduino.h>
-#include <NeoSWSerial.h>
+#include <AltSoftSerial.h>
 
-#define DEFAULT_BAUD_RATE 9600
 #define BUFFER_RESERVE_MEMORY 255
-#define TIME_OUT_READ_SERIAL 5000
+#define TIME_OUT_READ_SERIAL 10000
 
 class GPRSLib
 {
@@ -11,9 +10,11 @@ private:
     uint32_t _baud;
     uint8_t _timeout;
     char _buffer[BUFFER_RESERVE_MEMORY];
-    NeoSWSerial *_serial;
+    AltSoftSerial *_serial;
+    bool _debug;
 
     int _readSerial(char *buffer, uint32_t bufferSize, uint32_t startIndex = 0, uint32_t timeout = TIME_OUT_READ_SERIAL);
+    int _writeSerial(const char *buffer);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output);
     void _trimChar(char *buffer, char chr);
@@ -28,7 +29,7 @@ public:
     GPRSLib(/* args */);
     ~GPRSLib();
 
-    void setup(unsigned int baud);
+    void setup(unsigned int baud, bool debug = false);
     void gprsGetIP(char *ipAddress);
     bool gprsCloseConn();
     bool gprsIsConnected();

@@ -10,7 +10,7 @@
 #define BAUD 19200
 
 unsigned long lastMillis = 0;
-unsigned long interval = 5000;
+unsigned long interval = 30000;
 bool usbReady = true;
 char json[128];
 
@@ -23,19 +23,22 @@ void sendData(const char *data)
   char ipAddress[64];
   char httpResult[64];
 
-  gprs.connectBearer("telenor");
+  Serial.print("Connect Bearer: ");
+  Serial.println(gprs.connectBearer("telenor"));
   // gprs.gprsGetIP(ipAddress);
   // Serial.println(ipAddress);
   // gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, 32);
   // Serial.println(httpResult);
-  // gprs.gprsCloseConn();
+  delay(1000);
+  Serial.print("Closing connection: ");
+  Serial.println(gprs.gprsCloseConn());
 }
 
 void setup()
 {
   Serial.begin(BAUD);
 //  gsm.start(BAUD);
-  gprs.setup(BAUD);
+  gprs.setup(BAUD, false);
   dht.begin();
   //usbGps.setup();
 }
