@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <AltSoftSerial.h>
+#include <NeoSWSerial.h>
 
 #define DEFAULT_BAUD_RATE 9600
 #define BUFFER_RESERVE_MEMORY 255
@@ -11,9 +11,9 @@ private:
     uint32_t _baud;
     uint8_t _timeout;
     char _buffer[BUFFER_RESERVE_MEMORY];
-    AltSoftSerial *_serial;
+    NeoSWSerial *_serial;
 
-    int _readSerial(char *buffer, unsigned int bufferSize, int startIndex = 0, unsigned int timeout = TIME_OUT_READ_SERIAL);
+    int _readSerial(char *buffer, uint32_t bufferSize, uint32_t startIndex = 0, uint32_t timeout = TIME_OUT_READ_SERIAL);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output);
     void _trimChar(char *buffer, char chr);

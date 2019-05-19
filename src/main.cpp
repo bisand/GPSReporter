@@ -2,15 +2,15 @@
 #include "usbGps.h"
 #include "GPRSLib.h"
 
-#define RX 7
-#define TX 8
+#define RX 8
+#define TX 9
 #define RESET 2
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD 19200
 
 unsigned long lastMillis = 0;
-unsigned long interval = 15000;
+unsigned long interval = 5000;
 bool usbReady = true;
 char json[128];
 
@@ -20,15 +20,15 @@ DHT dht(DHTPIN, DHTTYPE);
 
 void sendData(const char *data)
 {
-  char ipAddress[16];
-  char httpResult[32];
+  char ipAddress[64];
+  char httpResult[64];
 
   gprs.connectBearer("telenor");
-  gprs.gprsGetIP(ipAddress);
-  Serial.println(ipAddress);
-  gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, 32);
-  Serial.println(httpResult);
-  gprs.gprsCloseConn();
+  // gprs.gprsGetIP(ipAddress);
+  // Serial.println(ipAddress);
+  // gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, 32);
+  // Serial.println(httpResult);
+  // gprs.gprsCloseConn();
 }
 
 void setup()
