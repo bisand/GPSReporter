@@ -12,7 +12,6 @@
 unsigned long lastMillis = 0;
 unsigned long interval = 30000;
 bool usbReady = true;
-char json[128];
 
 //GSMSim gsm(RX, TX);
 GPRSLib gprs;
@@ -37,7 +36,7 @@ void sendData(const char *data)
 void setup()
 {
   Serial.begin(BAUD);
-//  gsm.start(BAUD);
+  //  gsm.start(BAUD);
   gprs.setup(BAUD, false);
   dht.begin();
   //usbGps.setup();
@@ -56,29 +55,48 @@ void loop()
     float waterTemperature = 0.0;
     float humidity = dht.readHumidity();
     float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
-    int qos = 0; gprs.signalQuality();
+    int qos = 0;
+    gprs.signalQuality();
     unsigned long uptime = millis();
-    float latitude = 0.0;
-    float longitude = 0.0;
+    char latitude[] = "5915.7709N";
+    char longitude[] = "01028.7816E";
     float speed = 0.0;
     float heading = 0.0;
 
+    byte jsonSize = 128;
+    char *json = new char[jsonSize]();
+    char *tmpBuf = new char[16]();
+    memset(json, 0, jsonSize);
+
     // // Create Json string.
-    strcpy(json, "{}");
-    // json += "\"tmp\":" + String(temperature);       // Temperature
-    // json += ",\"wtp\":" + String(waterTemperature); // Water temperature
-    // json += ",\"hum\":" + String(humidity);         // Humidity
-    // json += ",\"hix\":" + String(heatIndex);        // Heat index
-    // json += ",\"lat\":" + String(latitude);         // Latitude
-    // json += ",\"lon\":" + String(longitude);        // Longitude
-    // json += ",\"hdg\":" + String(heading);          // Heading
-    // json += ",\"sog\":" + String(speed);            // Speed over ground
-    // json += ",\"qos\":" + String(qos);              // GPRS signal quality
-    // json += ",\"upt\":" + String(uptime);           // Uptime
-    //json += "}";
+    strcat(json, "{");
+    strcat(json, "\"tmp\":");
+    strcat(json, dtostrf(temperature, 5, 2, tmpBuf)); // Temperature
+    strcat(json, ",\"wtp\":");
+    strcat(json, dtostrf(waterTemperature, 5, 2, tmpBuf)); // Water temperature
+    strcat(json, ",\"hum\":");
+    strcat(json, dtostrf(humidity, 5, 2, tmpBuf)); // Humidity
+    strcat(json, ",\"hix\":");
+    strcat(json, dtostrf(heatIndex, 5, 2, tmpBuf)); // Heat index
+    strcat(json, ",\"lat\":");
+    strcat(json, latitude); // Latitude
+    strcat(json, ",\"lon\":");
+    strcat(json, longitude); // Longitude
+    strcat(json, ",\"hdg\":");
+    strcat(json, dtostrf(heading, 5, 2, tmpBuf)); // Heading
+    strcat(json, ",\"sog\":");
+    strcat(json, dtostrf(speed, 5, 2, tmpBuf)); // Speed over ground
+    strcat(json, ",\"qos\":");
+    strcat(json, dtostrf(qos, 5, 2, tmpBuf)); // GPRS signal quality
+    strcat(json, ",\"upt\":");
+    strcat(json, dtostrf(uptime, 5, 2, tmpBuf)); // Uptime
+    strcat(json, "}");
 
     Serial.println(json);
     sendData(json);
     lastMillis = millis();
+
+    delete [] json;
+    delete [] tmpBuf;
   }
 }
