@@ -42,8 +42,9 @@ bool GPRSLib::gprsIsConnected()
 	return false;
 }
 // GET IP Address
-bool GPRSLib::gprsGetIP(char ipAddress[32])
+bool GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
 {
+	memset(ipAddress, '\0', bufferSize);
 	_writeSerial("AT+SAPBR=2,1\r\n");
 	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != 1)
 	{
@@ -53,7 +54,7 @@ bool GPRSLib::gprsGetIP(char ipAddress[32])
 	char par[8];
 	_getResponseParams(_buffer, "+SAPBR:", 2, par);
 	_trimChar(par, ' ');
-	if (par[0] != '1')
+	if (par != "1")
 	{
 		ipAddress = (char *)"ERROR: NOT_CONNECTED";
 		return false;
@@ -62,7 +63,7 @@ bool GPRSLib::gprsGetIP(char ipAddress[32])
 	if (strstr(_buffer, "+SAPBR:") == NULL)
 	{
 		_getResponseParams(_buffer, "+SAPBR:", 3, ipAddress);
-		_trimChar(ipAddress, '\"');
+		//_trimChar(ipAddress, '\"');
 		return true;
 	}
 
@@ -304,7 +305,7 @@ int GPRSLib::httpPost(const char *url, const char *data, const char *contentType
 // 2 = ERROR is found.
 int GPRSLib::_readSerialUntilOkOrError(char *buffer, uint32_t bufferSize, uint32_t timeout = TIME_OUT_READ_SERIAL)
 {
-	return _readSerialUntilEitherOr(buffer, bufferSize, "OK", "ERROR", timeout);
+	return _readSerialUntilEitherOr(buffer, bufferSize, "\r\nOK\r\n\0", "\r\nERROR\r\n\0", timeout);
 }
 
 // Read serial until one of the two texts are found.
@@ -315,8 +316,8 @@ int GPRSLib::_readSerialUntilOkOrError(char *buffer, uint32_t bufferSize, uint32
 // 2 = orText is found.
 int GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const char *eitherText, const char *orText, uint32_t timeout = TIME_OUT_READ_SERIAL)
 {
-	int result;
-	memset(buffer, '\0', bufferSize);
+	int result = 0;
+	memset(buffer, 0, bufferSize);
 
 	uint64_t index = 0;
 	uint64_t timerStart, timerEnd;
@@ -361,16 +362,22 @@ int GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const c
 
 	if (_debug)
 	{
-		Serial.print("[DEBUG] [_readSerialUntilEitherOr] - ");
+		Serial.println("[DEBUG] [_readSerialUntilEitherOr]");
 		if (cei)
-			Serial.print(eitherText);
+		{
+			Serial.print("Either text:");
+			Serial.println(eitherText);
+		}
 		if (cor)
-			Serial.print(orText);
-		Serial.print(" - ");
+		{
+			Serial.print("Or text:");
+			Serial.println(orText);
+		}
+		Serial.println("Buffer: ");
 		Serial.println(buffer);
 	}
 
-	return index;
+	return result;
 }
 
 // Read serial until <CR> and <LF> is found.
@@ -467,7 +474,7 @@ void GPRSLib::_trimChar(char *buffer, char chr)
 	}
 
 	strncpy(buffer, &tmpBuf[start], len);
-	if(len < l)
+	if (len < l)
 		buffer[len] = '\0';
 	return;
 }

@@ -10,7 +10,7 @@
 #define BAUD 19200
 
 unsigned long lastMillis = 0;
-unsigned long interval = 30000;
+unsigned long interval = 15000;
 bool usbReady = true;
 
 //GSMSim gsm(RX, TX);
@@ -19,13 +19,15 @@ DHT dht(DHTPIN, DHTTYPE);
 
 void sendData(const char *data)
 {
-  char ipAddress[64];
+  char ipAddress[32];
   char httpResult[64];
 
   Serial.print("Connect Bearer: ");
   Serial.println(gprs.connectBearer("telenor"));
-  // gprs.gprsGetIP(ipAddress);
-  // Serial.println(ipAddress);
+  Serial.print("IP Address: ");
+  Serial.print(gprs.gprsGetIP(ipAddress, 32));
+  Serial.print(" - ");
+  Serial.println(ipAddress);
   // gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, 32);
   // Serial.println(httpResult);
   delay(1000);
@@ -37,7 +39,7 @@ void setup()
 {
   Serial.begin(BAUD);
   //  gsm.start(BAUD);
-  gprs.setup(BAUD, false);
+  gprs.setup(BAUD, true);
   dht.begin();
   //usbGps.setup();
 }
@@ -55,8 +57,7 @@ void loop()
     float waterTemperature = 0.0;
     float humidity = dht.readHumidity();
     float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
-    int qos = 0;
-    gprs.signalQuality();
+    int qos = gprs.signalQuality();
     unsigned long uptime = millis();
     char latitude[] = "5915.7709N";
     char longitude[] = "01028.7816E";
@@ -64,8 +65,8 @@ void loop()
     float heading = 0.0;
 
     byte jsonSize = 128;
-    char *json = new char[jsonSize]();
-    char *tmpBuf = new char[16]();
+    char json[jsonSize];
+    char tmpBuf[16];
     memset(json, 0, jsonSize);
 
     // // Create Json string.
@@ -95,8 +96,5 @@ void loop()
     Serial.println(json);
     sendData(json);
     lastMillis = millis();
-
-    delete [] json;
-    delete [] tmpBuf;
   }
 }

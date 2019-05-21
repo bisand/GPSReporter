@@ -32,7 +32,7 @@ public:
     ~GPRSLib();
 
     void setup(unsigned int baud, bool debug = false);
-    bool gprsGetIP(char *ipAddress);
+    bool gprsGetIP(char *ipAddress, uint8_t bufferSize);
     bool gprsCloseConn();
     bool gprsIsConnected();
     bool connectBearer();
