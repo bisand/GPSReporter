@@ -14,8 +14,8 @@ private:
     bool _debug;
 
     int _readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t startIndex = 0, uint32_t timeout = TIME_OUT_READ_SERIAL);
-    int _readSerialUntilOkOrError(char *buffer, uint32_t bufferSize, uint32_t startIndex = 0, uint32_t timeout = TIME_OUT_READ_SERIAL);
-    int _readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const char *eitherText, const char *orText, uint32_t startIndex = 0, uint32_t timeout = TIME_OUT_READ_SERIAL);
+    int _readSerialUntilOkOrError(char *buffer, uint32_t bufferSize, uint32_t timeout = TIME_OUT_READ_SERIAL);
+    int _readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const char *eitherText, const char *orText, uint32_t timeout = TIME_OUT_READ_SERIAL);
     int _writeSerial(const char *buffer);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output);
@@ -32,7 +32,7 @@ public:
     ~GPRSLib();
 
     void setup(unsigned int baud, bool debug = false);
-    void gprsGetIP(char *ipAddress);
+    bool gprsGetIP(char *ipAddress);
     bool gprsCloseConn();
     bool gprsIsConnected();
     bool connectBearer();
