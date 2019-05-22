@@ -20,7 +20,7 @@ DHT dht(DHTPIN, DHTTYPE);
 void sendData(const char *data)
 {
   char ipAddress[32];
-  char httpResult[64];
+  //char httpResult[64];
 
   Serial.print("Connect Bearer: ");
   Serial.println(gprs.connectBearer("telenor"));

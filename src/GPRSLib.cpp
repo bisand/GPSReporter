@@ -53,21 +53,23 @@ bool GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
 
 	char par[8];
 	_getResponseParams(_buffer, "+SAPBR:", 2, par);
-	_trimChar(par, ' ');
-	if (par != "1")
+	Serial.print("par: ");
+	Serial.println(par);
+	//_trimChar(par, ' ');
+	if (strstr(par, "1") == NULL)
 	{
-		ipAddress = (char *)"ERROR: NOT_CONNECTED";
+		strcpy(ipAddress, "ERROR: NOT_CONNECTED");
 		return false;
 	}
 
-	if (strstr(_buffer, "+SAPBR:") == NULL)
+	if (strstr(_buffer, "+SAPBR:") != NULL)
 	{
 		_getResponseParams(_buffer, "+SAPBR:", 3, ipAddress);
 		//_trimChar(ipAddress, '\"');
 		return true;
 	}
 
-	ipAddress = (char *)"ERROR: NO_IP_FETCH";
+	strcpy(ipAddress, "ERROR: NO_IP_FETCH");
 	return false;
 }
 
@@ -481,25 +483,27 @@ void GPRSLib::_trimChar(char *buffer, char chr)
 
 bool GPRSLib::_getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output)
 {
-	uint8_t idx = 0;
-	uint8_t bufLen = strlen(buffer);
-	uint8_t cmdLen = strlen(cmd);
-	char *pch;
-	char tmpChr[bufLen - cmdLen];
-	memset(tmpChr, '\0', bufLen - cmdLen);
-	memset(output, '\0', bufLen - cmdLen);
-	strncpy(tmpChr, &buffer[cmdLen], (bufLen - cmdLen) - 1);
+    uint8_t idx = 0;
+    uint8_t bufLen = strlen(buffer);
+    uint8_t cmdLen = strlen(cmd);
+    char *pch;
+    char tmpChr[bufLen - cmdLen];
+    memset(tmpChr, '\0', bufLen - cmdLen);
+    memset(output, '\0', bufLen - cmdLen);
+    char *foundCmd = strstr(buffer, cmd);
+    if (!foundCmd)
+    {
+        return false;
+    }
 
-	pch = strtok(tmpChr, ",");
-	while (pch != NULL)
-	{
-		if (++idx == paramNum)
-		{
-			strcpy(output, pch);
-			return true;
-		}
-		pch = strtok(NULL, ",");
-	}
-	output[0] = '\0';
-	return false;
+    strncpy(tmpChr, &foundCmd[cmdLen], (bufLen - cmdLen) - 1);
+    char *tmpChr2 = strdup(tmpChr);
+
+    while ((pch = strsep(&tmpChr2, ",")) != NULL)
+        if (++idx == paramNum)
+        {
+            strcpy(output, pch);
+            return true;
+        }
+    return false;
 }
