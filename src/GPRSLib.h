@@ -3,6 +3,14 @@
 
 #define BUFFER_RESERVE_MEMORY 255
 #define TIME_OUT_READ_SERIAL 10000
+enum ReadSerialResult
+{
+    TIMEOUT = -2,
+    INDEX_EXCEEDED_BUFFER_SIZE = -1,
+    NOTHING_FOUND = 0,
+    FOUND_EITHER_TEXT = 1,
+    FOUND_OR_TEXT = 2
+};
 
 class GPRSLib
 {
@@ -14,11 +22,11 @@ private:
     bool _debug;
 
     int _readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t startIndex = 0, uint32_t timeout = TIME_OUT_READ_SERIAL);
-    int _readSerialUntilOkOrError(char *buffer, uint32_t bufferSize, uint32_t timeout = TIME_OUT_READ_SERIAL);
-    int _readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const char *eitherText, const char *orText, uint32_t timeout = TIME_OUT_READ_SERIAL);
+    ReadSerialResult _readSerialUntilOkOrError(char *buffer, uint32_t bufferSize, uint32_t timeout = TIME_OUT_READ_SERIAL);
+    ReadSerialResult _readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const char *eitherText, const char *orText, uint32_t timeout = TIME_OUT_READ_SERIAL);
     int _writeSerial(const char *buffer);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
-    bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output);
+    bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
 public:
     uint8_t RX_PIN;
