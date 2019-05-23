@@ -15,7 +15,7 @@ bool usbReady = true;
 
 //GSMSim gsm(RX, TX);
 GPRSLib gprs;
-GPSLib gps;
+GPSLib gpsLib;
 DHT dht(DHTPIN, DHTTYPE);
 
 void sendData(const char *data)
@@ -23,32 +23,32 @@ void sendData(const char *data)
   char ipAddress[32];
   char httpResult[32];
 
-  Serial.print(F("Connect Bearer: "));
+  Serial.print(F("Connect Bearer: \0"));
   Serial.println(gprs.connectBearer("telenor"));
-  Serial.print(F("IP Address: "));
-  Serial.print(gprs.gprsGetIP(ipAddress, 32));
-  Serial.print(F(" - "));
-  Serial.println(ipAddress);
+  // Serial.print(F("IP Address: "));
+  // Serial.print(gprs.gprsGetIP(ipAddress, 32));
+  // Serial.print(F(" - "));
+  // Serial.println(ipAddress);
   Serial.print(F("HTTP POST: "));
   Serial.print(gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, sizeof(httpResult)));
   Serial.println(httpResult);
   delay(1000);
-  Serial.print(F("Closing connection: "));
+  Serial.print(F("Closing connection: \0"));
   Serial.println(gprs.gprsCloseConn());
 }
 
 void setup()
 {
   Serial.begin(BAUD);
-  gprs.setup(BAUD, true);
-  gps.setup(BAUD, true);
+  gprs.setup(BAUD, false);
+  gpsLib.setup(9600, false);
   dht.begin();
   //usbGps.setup();
 }
 
 void loop()
 {
-  //usbGps.loop();
+  gpsLib.loop();
 
   if (millis() > lastMillis + interval)
   {
@@ -62,10 +62,10 @@ void loop()
     float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
     int qos = gprs.signalQuality();
     unsigned long uptime = millis();
-    char latitude[] = "5915.7709N";
-    char longitude[] = "01028.7816E";
-    float speed = 0.0;
-    float heading = 0.0;
+    float latitude = gpsLib.fix.latitude();
+    float longitude = gpsLib.fix.longitude();
+    float speed = gpsLib.fix.speed();
+    float heading = gpsLib.fix.heading();
 
     uint8_t jsonSize = 255;
     char json[jsonSize];
@@ -75,25 +75,25 @@ void loop()
     // // Create Json string.
     strcat(json, "{");
     strcat(json, "\"tmp\":");
-    strcat(json, dtostrf(temperature, 5, 2, tmpBuf)); // Temperature
+    strcat(json, dtostrf(temperature, 7, 2, tmpBuf)); // Temperature
     strcat(json, ",\"wtp\":");
-    strcat(json, dtostrf(waterTemperature, 5, 2, tmpBuf)); // Water temperature
+    strcat(json, dtostrf(waterTemperature, 7, 2, tmpBuf)); // Water temperature
     strcat(json, ",\"hum\":");
-    strcat(json, dtostrf(humidity, 5, 2, tmpBuf)); // Humidity
+    strcat(json, dtostrf(humidity, 7, 2, tmpBuf)); // Humidity
     strcat(json, ",\"hix\":");
-    strcat(json, dtostrf(heatIndex, 5, 2, tmpBuf)); // Heat index
+    strcat(json, dtostrf(heatIndex, 7, 2, tmpBuf)); // Heat index
     strcat(json, ",\"lat\":");
-    strcat(json, latitude); // Latitude
+    strcat(json, dtostrf(latitude, 10, 6, tmpBuf)); // Latitude
     strcat(json, ",\"lon\":");
-    strcat(json, longitude); // Longitude
+    strcat(json, dtostrf(longitude, 10, 6, tmpBuf)); // Longitude
     strcat(json, ",\"hdg\":");
-    strcat(json, dtostrf(heading, 5, 2, tmpBuf)); // Heading
+    strcat(json, dtostrf(heading, 7, 2, tmpBuf)); // Heading
     strcat(json, ",\"sog\":");
-    strcat(json, dtostrf(speed, 5, 2, tmpBuf)); // Speed over ground
+    strcat(json, dtostrf(speed, 7, 2, tmpBuf)); // Speed over ground
     strcat(json, ",\"qos\":");
-    strcat(json, dtostrf(qos, 5, 2, tmpBuf)); // GPRS signal quality
+    strcat(json, dtostrf(qos, 7, 2, tmpBuf)); // GPRS signal quality
     strcat(json, ",\"upt\":");
-    strcat(json, dtostrf(uptime, 5, 2, tmpBuf)); // Uptime
+    strcat(json, itoa(uptime, tmpBuf, 10)); // Uptime
     strcat(json, "}\0");
 
     Serial.println(json);

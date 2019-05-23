@@ -76,6 +76,7 @@ private:
     bool _debug;
     char _buffer[BUFFER_RESERVE_MEMORY];
 
+    void _clearBuffer(char *buffer, uint32_t size);
     int _readSerialUntilCrLf(char *buffer, uint32_t bufferSize);
     int _readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t startIndex);
     int _readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t startIndex, uint32_t timeout);
@@ -89,8 +90,8 @@ private:
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
 public:
-    uint8_t RX_PIN;
-    uint8_t TX_PIN;
+    // uint8_t RX_PIN;
+    // uint8_t TX_PIN;
     uint8_t RESET_PIN;
     uint8_t LED_PIN;
     bool LED_FLAG;
@@ -101,11 +102,11 @@ public:
 
     void setup(uint32_t baud, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint8_t bufferSize);
-    bool gprsCloseConn();
+    Result gprsCloseConn();
     bool gprsIsConnected();
     Result connectBearer();
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);
     uint8_t signalQuality();
-    int httpPost(const char *url, const char *data, const char *contentType, bool read, char *output, unsigned int outputSize);
+    Result httpPost(const char *url, const char *data, const char *contentType, bool read, char *output, unsigned int outputSize);
 };

@@ -1,5 +1,5 @@
 #include <NeoSWSerial.h>
-#include <NeoGPS_cfg.h>
+#include <NMEAGPS.h>
 
 class GPSLib
 {
@@ -11,12 +11,15 @@ private:
     bool _newline;
     uint32_t _oldlines;
 
-    static void _handleRxChar( uint8_t c );
+    NMEAGPS *_gps; // This parses the GPS characters
+
     void _clearBuffer();
 
 public:
     GPSLib(/* args */);
     ~GPSLib();
+
+    gps_fix fix; // This holds on to the latest values
 
     void setup(uint32_t baud, bool debug = false);
     void loop();

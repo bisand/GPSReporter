@@ -1,25 +1,14 @@
 #include "GPSLib.h"
-#include <NeoSWSerial.h>
+#include <NMEAGPS.h>
+#include <GPSport.h>
 
 GPSLib::GPSLib(/* args */)
 {
-    _serial1 = new NeoSWSerial(4, 3);
+    _gps = new NMEAGPS(); // This parses the GPS characters
 }
 
 GPSLib::~GPSLib()
 {
-}
-
-void GPSLib::_handleRxChar(uint8_t c)
-{
-    // if (_index < sizeof(_buffer) - 1)
-    // {
-    //     _buffer[_index] = c;
-    //     _buffer[_index + 1] = '\0';
-    // }
-
-    // if (c == '\n')
-    //     _newlines++;
 }
 
 void GPSLib::_clearBuffer()
@@ -33,38 +22,35 @@ void GPSLib::_clearBuffer()
 void GPSLib::setup(uint32_t baud, bool debug = false)
 {
     _debug = debug;
-    _serial1->attachInterrupt(GPSLib::_handleRxChar);
-    _serial1->begin(baud);
+    // DEBUG_PORT.begin(baud);
+    // while (!Serial)
+    //     ;
+    DEBUG_PORT.print(F("NMEAsimple.INO: started\n"));
+
+    gpsPort.begin(baud);
 }
 
 void GPSLib::loop()
 {
-    while (_serial1->available())
+    while (_gps->available(gpsPort))
     {
-        char c = _serial1->read();
-        _buffer[_index++] = c;
-        _buffer[_index] = '\0';
-        if (c == '\n' || _index >= sizeof(_buffer) - 1)
-        {
-            _newline = true;
-            break;
-        }
-    }
-    if (_newline)
-    {
-        char tmp[255];
-        _index = 0;
-        strcpy(tmp, (char *)_buffer);
+        fix = _gps->read();
 
-        if (_debug)
-        {
-            if (strlen(tmp) > 0)
-            {
-                Serial.println(tmp);
-            }
-        }
-        _newline = false;
+        if (!_debug)
+            continue;
 
-        _clearBuffer();
+        DEBUG_PORT.print(F("Location: "));
+        if (fix.valid.location)
+        {
+            DEBUG_PORT.print(fix.latitude(), 6);
+            DEBUG_PORT.print(',');
+            DEBUG_PORT.print(fix.longitude(), 6);
+        }
+
+        DEBUG_PORT.print(F(", Altitude: "));
+        if (fix.valid.altitude)
+            DEBUG_PORT.print(fix.altitude());
+
+        DEBUG_PORT.println();
     }
 }
