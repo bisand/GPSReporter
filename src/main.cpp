@@ -22,17 +22,17 @@ void sendData(const char *data)
   char ipAddress[32];
   char httpResult[32];
 
-  Serial.print("Connect Bearer: ");
+  Serial.print(F("Connect Bearer: "));
   Serial.println(gprs.connectBearer("telenor"));
-  // Serial.print("IP Address: ");
+  // Serial.print(F("IP Address: "));
   // Serial.print(gprs.gprsGetIP(ipAddress, 32));
-  // Serial.print(" - ");
+  // Serial.print(F(" - "));
   // Serial.println(ipAddress);
-  // Serial.print("HTTP POST: ");
+  // Serial.print(F("HTTP POST: "));
   // Serial.print(gprs.httpPost("https://bogenhuset.no/nodered/test\0", data, "application/json\0", false, httpResult, 32));
   // Serial.println(httpResult);
   delay(1000);
-  Serial.print("Closing connection: ");
+  Serial.print(F("Closing connection: "));
   Serial.println(gprs.gprsCloseConn());
 }
 

@@ -26,19 +26,14 @@ void GPRSLib::setup(unsigned int baud, bool debug = false)
 	}
 }
 
-char *GPRSLib::_getBuffer(size_t size)
-{
-	char *result = (char *)malloc(size);
-}
-
 bool GPRSLib::gprsIsConnected()
 {
 	bool result = false;
-	_writeSerial("AT+SAPBR=2,1\r");
-	int idx = _readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY);
+	_writeSerial(F("AT+SAPBR=2,1\r"));
+	int idx = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 
 	char par[8];
-	_getResponseParams(_buffer, "+SAPBR:", 2, par, 8);
+	_getResponseParams(_buffer, "+SAPBR:", 2, par, sizeof(par));
 	if (atoi(par) == 1)
 		result = true;
 
@@ -46,117 +41,91 @@ bool GPRSLib::gprsIsConnected()
 }
 
 // GET IP Address
-bool GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
+Result GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
 {
-	bool result = false;
-	//memset(ipAddress, '\0', bufferSize);
-	_writeSerial("AT+SAPBR=2,1\r\n");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != 1)
-	{
-		return false;
-	}
+	_writeSerial(F("AT+SAPBR=2,1\r\n"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != 1)
+		return ERROR_OPEN_GPRS_CONTEXT;
 
 	char par[8];
-	_getResponseParams(_buffer, "+SAPBR:", 2, par, 8);
-	Serial.print("par: ");
-	Serial.println(par);
+	_getResponseParams(_buffer, "+SAPBR:", 2, par, sizeof(par));
 	if (atoi(par) != 1)
-	{
-		strcpy(ipAddress, "ERROR: NOT_CONNECTED");
-		return false;
-	}
+		return ERROR_OPEN_GPRS_CONTEXT;
 
-	if (strstr(_buffer, "+SAPBR:") != NULL)
-	{
-		_getResponseParams(_buffer, "+SAPBR:", 3, ipAddress, bufferSize);
-		_trimChar(ipAddress, '\"');
-		result = true;
-	}
+	if (strstr(_buffer, "+SAPBR:") == NULL)
+		return ERROR_QUERY_GPRS_CONTEXT;
 
-	strcpy(ipAddress, "ERROR: NO_IP_FETCH");
-	return result;
+	_getResponseParams(_buffer, "+SAPBR:", 3, ipAddress, bufferSize);
+	_trimChar(ipAddress, '\"');
+	return SUCCESS;
 }
 
 bool GPRSLib::gprsCloseConn()
 {
-	bool result = false;
-	_writeSerial("AT+SAPBR=0,1\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) == 1)
-		result = true;
+	_writeSerial(F("AT+SAPBR=0,1\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) == 1)
+		return true;
 
-	return result;
+	return false;
 }
 
-bool GPRSLib::connectBearer()
+Result GPRSLib::connectBearer()
 {
 	return connectBearer("internet", "", "");
 }
 
-bool GPRSLib::connectBearer(const char *apn)
+Result GPRSLib::connectBearer(const char *apn)
 {
 	return connectBearer(apn, "", "");
 }
 
-bool GPRSLib::connectBearer(const char *apn, const char *username, const char *password)
+Result GPRSLib::connectBearer(const char *apn, const char *username, const char *password)
 {
-	bool result = false;
-	_writeSerial((const char *)"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
-	{
-		return false;
-	}
+	_writeSerial(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return ERROR_BEARER_PROFILE_GPRS;
 
-	_writeSerial("AT+SAPBR=3,1,\"APN\",\"");
+	_writeSerial(F("AT+SAPBR=3,1,\"APN\",\""));
 	_writeSerial(apn);
-	_writeSerial("\"\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
-	{
-		return false;
-	}
+	_writeSerial(F("\"\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return ERROR_BEARER_PROFILE_APN;
 
-	_writeSerial("AT+SAPBR=3,1,\"USER\",\"");
+	_writeSerial(F("AT+SAPBR=3,1,\"USER\",\""));
 	_writeSerial(username);
-	_writeSerial("\"\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
-	{
-		return false;
-	};
+	_writeSerial(F("\"\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return ERROR_BEARER_PROFILE_APN;
 
-	_writeSerial("AT+SAPBR=3,1,\"PWD\",\"");
+	_writeSerial(F("AT+SAPBR=3,1,\"PWD\",\""));
 	_writeSerial(password);
-	_writeSerial("\"\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
-	{
-		return false;
-	}
+	_writeSerial(F("\"\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return ERROR_BEARER_PROFILE_APN;
 
 	// Open bearer
-	_writeSerial("AT+SAPBR=1,1\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
-	{
-		return false;
-	}
+	_writeSerial(F("AT+SAPBR=1,1\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return ERROR_OPEN_GPRS_CONTEXT;
 
 	// Query bearer
-	_writeSerial("AT+SAPBR=2,1\r");
-	int res = _readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY);
+	_writeSerial(F("AT+SAPBR=2,1\r"));
+	int res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 	char out[8];
-	_getResponseParams(_buffer, "+SAPBR:", 2, out, 8);
-	if (res == FOUND_EITHER_TEXT && atoi(out) == 1)
-	{
-		result = true;
-	}
+	_getResponseParams(_buffer, "+SAPBR:", 2, out, sizeof(out));
+	if (res != FOUND_EITHER_TEXT || atoi(out) != 1)
+		return ERROR_OPEN_GPRS_CONTEXT;
 
-	return result;
+	return SUCCESS;
 }
 
 uint8_t GPRSLib::signalQuality()
 {
-	_writeSerial("AT+CSQ\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) == FOUND_EITHER_TEXT)
+	_writeSerial(F("AT+CSQ\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) == FOUND_EITHER_TEXT)
 	{
 		char out[8];
-		_getResponseParams(_buffer, "+CSQ:", 1, out, 8);
+		_getResponseParams(_buffer, "+CSQ:", 1, out, sizeof(out));
 		return atoi(out);
 	}
 	return 99;
@@ -169,16 +138,16 @@ int GPRSLib::httpPost(const char *url, const char *data, const char *contentType
 	{
 		https = true;
 	}
-	// if (!gprsIsConnected())
-	// {
-	// 	strcpy(output, "GPRS_NOT_CONNECTED");
-	// 	return 503;
-	// }
+	if (!gprsIsConnected())
+	{
+		strcpy(output, "GPRS_NOT_CONNECTED");
+		return 503;
+	}
 	// Terminate http connection, if it opened before!
-	_writeSerial("AT+HTTPTERM\r");
-	_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY);
-	_writeSerial("AT+HTTPINIT\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+	_writeSerial(F("AT+HTTPTERM\r"));
+	_readSerialUntilOkOrError(_buffer, sizeof(_buffer));
+	_writeSerial(F("AT+HTTPINIT\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_INIT_ERROR");
 		return 503;
@@ -186,8 +155,8 @@ int GPRSLib::httpPost(const char *url, const char *data, const char *contentType
 	if (https)
 	{
 		// Set SSL if https
-		_writeSerial("AT+HTTPSSL=1\r");
-		if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+		_writeSerial(F("AT+HTTPSSL=1\r"));
+		if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 		{
 			strcpy(output, "HTTPSSL_ERROR");
 			return 400;
@@ -195,28 +164,28 @@ int GPRSLib::httpPost(const char *url, const char *data, const char *contentType
 	}
 
 	// Set bearer profile id
-	_writeSerial("AT+HTTPPARA=\"CID\",1\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+	_writeSerial(F("AT+HTTPPARA=\"CID\",1\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_PARAMETER_CID_ERROR");
 		return 400;
 	}
 
 	// Set url
-	_writeSerial("AT+HTTPPARA=\"URL\",\"");
+	_writeSerial(F("AT+HTTPPARA=\"URL\",\""));
 	_writeSerial(url);
-	_writeSerial("\"\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+	_writeSerial(F("\"\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_PARAMETER_URL_ERROR");
 		return 400;
 	}
 
 	// Set content type
-	_writeSerial("AT+HTTPPARA=\"CONTENT\",\"");
+	_writeSerial(F("AT+HTTPPARA=\"CONTENT\",\""));
 	_writeSerial(contentType);
-	_writeSerial("\"\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+	_writeSerial(F("\"\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_PARAMETER_CONTENT_ERROR");
 		return 400;
@@ -225,12 +194,10 @@ int GPRSLib::httpPost(const char *url, const char *data, const char *contentType
 	// Indicate that buffer will be transfered within 30 secods.
 	char dLen[8];
 	itoa(strlen(data), dLen, 10);
-	Serial.print("Data length: ");
-	Serial.println(dLen);
-	_writeSerial("AT+HTTPDATA=");
+	_writeSerial(F("AT+HTTPDATA="));
 	_writeSerial(dLen);
-	_writeSerial(",30000\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY, 30000) != FOUND_EITHER_TEXT)
+	_writeSerial(F(",30000\r"));
+	if (_readSerialUntilOkOrError(_buffer, 30000) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_DATA_ERROR");
 		return 400;
@@ -238,48 +205,47 @@ int GPRSLib::httpPost(const char *url, const char *data, const char *contentType
 
 	// Send data.
 	_writeSerial(data);
-	_writeSerial("\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+	_writeSerial(F("\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_DATA_DOWNLOAD_ERROR");
 		return 400;
 	}
 
 	// Set action and perform request 1=POST
-	_writeSerial("AT+HTTPACTION=1\r");
-	if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY) != FOUND_EITHER_TEXT)
+	_writeSerial(F("AT+HTTPACTION=1\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 	{
 		strcpy(output, "HTTP_ACTION_ERROR");
 		return 400;
 	}
 
 	// Get the response.
-	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY);
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 	char out[8];
-	_getResponseParams(_buffer, "+HTTPACTION:", 1, out, 8);
+	_getResponseParams(_buffer, "+HTTPACTION:", 1, out, sizeof(out));
 	if (res != FOUND_EITHER_TEXT || atoi(out) != 1)
 	{
 		strcpy(output, "HTTP_ACTION_READ_ERROR");
 		return 400;
 	}
 
-	_getResponseParams(_buffer, "+HTTPACTION:", 2, out, 8);
+	_getResponseParams(_buffer, "+HTTPACTION:", 2, out, sizeof(out));
 	int result = atoi(out);
 
 	if (read)
 	{
-		_writeSerial("AT+HTTPREAD\r");
-		if (_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY, 10000) == FOUND_EITHER_TEXT)
+		_writeSerial(F("AT+HTTPREAD\r"));
+		if (_readSerialUntilOkOrError(_buffer, 10000) == FOUND_EITHER_TEXT)
 		{
-			_getResponseParams(_buffer, "+HTTPREAD:", 1, out, 8);
+			_getResponseParams(_buffer, "+HTTPREAD:", 1, out, sizeof(out));
 			int dataSize = atoi(out);
 			//TODO: Extract result;
 		}
 	}
 
-	_writeSerial("AT+HTTPTERM\r");
-	_readSerialUntilOkOrError(_buffer, BUFFER_RESERVE_MEMORY);
-
+	_writeSerial(F("AT+HTTPTERM\r"));
+	_readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 
 	return result;
 }
@@ -308,8 +274,6 @@ ReadSerialResult GPRSLib::_readSerialUntilOkOrError(char *buffer, uint32_t buffe
 ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t bufferSize, const char *eitherText, const char *orText, uint32_t timeout = TIME_OUT_READ_SERIAL)
 {
 	ReadSerialResult result = NOTHING_FOUND;
-	//memset(buffer, 0, bufferSize);
-
 	uint64_t index = 0;
 	uint64_t timerStart, timerEnd;
 	timerStart = millis();
@@ -381,8 +345,6 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 {
 	if (startIndex >= bufferSize)
 		return 0;
-	// if (startIndex == 0)
-	// 	memset(buffer, '\0', bufferSize);
 
 	uint64_t index = startIndex;
 	uint64_t timerStart, timerEnd;
@@ -400,6 +362,7 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 			if (c == '\n' && index > 1)
 				lf = true;
 			buffer[index++] = c;
+			buffer[index] = '\0';
 			if (cr && lf)
 				break;
 			if (index >= bufferSize)
@@ -411,27 +374,31 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 		if (timerEnd - timerStart > timeout)
 			break;
 	}
-	buffer[index] = '\0';
 
 	if (_debug)
 	{
-		Serial.print("[DEBUG] [_readSerialUntilCrLf] - ");
+		Serial.print(F("[DEBUG] [_readSerialUntilCrLf] - "));
 		Serial.println(buffer);
 	}
 
 	return index;
 }
 
-int GPRSLib::_writeSerial(const char *buffer)
+int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
+{
+	return _writeSerial((const char PROGMEM *)buffer);
+}
+
+int GPRSLib::_writeSerial(const char PROGMEM *buffer)
 {
 	if (_debug)
 	{
-		Serial.print("[DEBUG] [_writeSerial] - ");
+		Serial.print(F("[DEBUG] [_writeSerial] - "));
 		Serial.println(buffer);
 	}
 	_serial->print(buffer);
 	_serial->flush();
-	return strlen(buffer);
+	return strlen_P(buffer);
 }
 
 void GPRSLib::_extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize)
@@ -481,8 +448,6 @@ bool GPRSLib::_getResponseParams(char *buffer, const char *cmd, uint8_t paramNum
 	{
 		return result;
 	}
-
-	//memset(output, '\0', outputLength);
 
 	char *tok, *r, *end;
 	r = end = strdup(&foundCmd[cmdLen]);
