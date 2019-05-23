@@ -93,7 +93,7 @@ void loop()
     strcat(json, ",\"qos\":");
     strcat(json, dtostrf(qos, 7, 2, tmpBuf)); // GPRS signal quality
     strcat(json, ",\"upt\":");
-    strcat(json, itoa(uptime, tmpBuf, 10)); // Uptime
+    strcat(json, ultoa(uptime, tmpBuf, 10)); // Uptime
     strcat(json, "}\0");
 
     Serial.println(json);
