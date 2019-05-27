@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include <AltSoftSerial.h>
 
-#define BUFFER_RESERVE_MEMORY 300
-#define TIME_OUT_READ_SERIAL 10000
+#define BUFFER_RESERVE_MEMORY 255
+#define TIME_OUT_READ_SERIAL 5000
 
 // #define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"Contype\",\"GPRS\"\r\n"
 // #define BEARER_PROFILE_APN "AT+SAPBR=3,1,\"APN\",\"%s\"\r\n"
@@ -60,6 +60,8 @@ enum Result {
 };
 enum ReadSerialResult
 {
+    CME_ERROR = -4,
+    CMS_ERROR = -3,
     TIMEOUT = -2,
     INDEX_EXCEEDED_BUFFER_SIZE = -1,
     NOTHING_FOUND = 0,

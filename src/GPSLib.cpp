@@ -9,6 +9,7 @@ GPSLib::GPSLib(/* args */)
 
 GPSLib::~GPSLib()
 {
+    delete _gps;
 }
 
 void GPSLib::_clearBuffer()
