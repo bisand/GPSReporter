@@ -26,6 +26,17 @@ void GPRSLib::setup(uint32_t baud, bool debug)
 	}
 }
 
+bool GPRSLib::gprsInit()
+{
+	bool result = false;
+	_writeSerial(F("AT\r"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
+	if (res == FOUND_EITHER_TEXT)
+		result = true;
+
+	return result;
+}
+
 bool GPRSLib::gprsIsConnected()
 {
 	bool result = false;
@@ -41,9 +52,9 @@ bool GPRSLib::gprsIsConnected()
 }
 
 // GET IP Address
-Result GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
+Result GPRSLib::gprsGetIP(char *ipAddress, uint16_t bufferSize)
 {
-	_writeSerial(F("AT+SAPBR=2,1\r\n"));
+	_writeSerial(F("AT+SAPBR=2,1\r"));
 	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != 1)
 		return ERROR_OPEN_GPRS_CONTEXT;
 
@@ -113,6 +124,7 @@ Result GPRSLib::connectBearer(const char *apn, const char *username, const char 
 	int res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 	char out[8];
 	_getResponseParams(_buffer, "+SAPBR:", 2, out, sizeof(out));
+	Serial.println(out);
 	if (res != FOUND_EITHER_TEXT || atoi(out) != 1)
 		return ERROR_OPEN_GPRS_CONTEXT;
 
@@ -390,6 +402,7 @@ int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 		Serial.print(F("[DEBUG] [_writeSerial] - \0"));
 		Serial.println(buffer);
 	}
+	delay(50);
 	return strlen_P((const char *)buffer);
 }
 
@@ -402,6 +415,7 @@ int GPRSLib::_writeSerial(const char *buffer)
 		Serial.print(F("[DEBUG] [_writeSerial] - \0"));
 		Serial.println(buffer);
 	}
+	delay(50);
 	return strlen_P(buffer);
 }
 
@@ -451,6 +465,8 @@ bool GPRSLib::_getResponseParams(char *buffer, const char *cmd, uint8_t paramNum
 	{
 		return result;
 	}
+
+	_clearBuffer(output, outputLength);
 
 	char *tok, *r, *end;
 	r = end = strdup(&foundCmd[cmdLen]);

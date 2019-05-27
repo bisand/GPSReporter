@@ -21,6 +21,6 @@ public:
 
     gps_fix fix; // This holds on to the latest values
 
-    void setup(uint32_t baud, bool debug = false);
+    void setup(uint32_t baud, uint32_t debugBaud, bool debug = false);
     void loop();
 };

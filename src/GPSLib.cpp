@@ -19,13 +19,10 @@ void GPSLib::_clearBuffer()
     }
 }
 
-void GPSLib::setup(uint32_t baud, bool debug = false)
+void GPSLib::setup(uint32_t baud, uint32_t debugBaud, bool debug = false)
 {
     _debug = debug;
-    // DEBUG_PORT.begin(baud);
-    // while (!Serial)
-    //     ;
-    DEBUG_PORT.print(F("NMEAsimple.INO: started\n"));
+    Serial.println(F("GPSLib started"));
 
     gpsPort.begin(baud);
 }
@@ -39,18 +36,18 @@ void GPSLib::loop()
         if (!_debug)
             continue;
 
-        DEBUG_PORT.print(F("Location: "));
+        Serial.print(F("Location: "));
         if (fix.valid.location)
         {
-            DEBUG_PORT.print(fix.latitude(), 6);
-            DEBUG_PORT.print(',');
-            DEBUG_PORT.print(fix.longitude(), 6);
+            Serial.print(fix.latitude(), 6);
+            Serial.print(',');
+            Serial.print(fix.longitude(), 6);
         }
 
-        DEBUG_PORT.print(F(", Altitude: "));
-        if (fix.valid.altitude)
-            DEBUG_PORT.print(fix.altitude());
-
-        DEBUG_PORT.println();
+        Serial.print(F(", Altitude: "));
+        if (fix.valid.altitude){
+            Serial.print(fix.altitude());
+        }
+        Serial.println();
     }
 }

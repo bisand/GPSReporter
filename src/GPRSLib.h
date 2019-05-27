@@ -101,9 +101,10 @@ public:
     ~GPRSLib();
 
     void setup(uint32_t baud, bool debug = false);
-    Result gprsGetIP(char *ipAddress, uint8_t bufferSize);
+    Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
     bool gprsIsConnected();
+    bool gprsInit();
     Result connectBearer();
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);

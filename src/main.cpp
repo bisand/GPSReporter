@@ -7,10 +7,10 @@
 #define RESET 2
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
-#define BAUD 19200
+#define BAUD 9600
 
 unsigned long lastMillis = 0;
-unsigned long interval = 1000;
+unsigned long interval = 15000;
 bool usbReady = true;
 
 //GSMSim gsm(RX, TX);
@@ -25,12 +25,11 @@ void sendData(const char *data)
 
   Serial.print(F("Connect Bearer: \0"));
   Serial.println(gprs.connectBearer("telenor"));
-  // Serial.print(F("IP Address: "));
-  // Serial.print(gprs.gprsGetIP(ipAddress, 32));
-  // Serial.print(F(" - "));
-  // Serial.println(ipAddress);
+  Serial.print(F("IP Address: "));
+  Serial.print(gprs.gprsGetIP(ipAddress, sizeof(ipAddress)));
+  Serial.println(ipAddress);
   Serial.print(F("HTTP POST: "));
-  Serial.print(gprs.httpPost("https://bogenhuset.no/nodered/test", data, "application/json", false, httpResult, sizeof(httpResult)));
+  Serial.print(gprs.httpPost("https://bogenhuset.no/nodered/ais/blackpearl", data, "application/json", false, httpResult, sizeof(httpResult)));
   Serial.println(httpResult);
   delay(1000);
   Serial.print(F("Closing connection: \0"));
@@ -40,24 +39,32 @@ void sendData(const char *data)
 void setup()
 {
   Serial.begin(BAUD);
+
   gprs.setup(BAUD, false);
-  gpsLib.setup(9600, false);
+  Serial.print(F("Starting..."));
+  delay(10000);
+	gprs.gprsInit();
+  delay(1000);
+	while(!gprs.gprsIsConnected()){
+    Serial.print(".");
+		gprs.connectBearer("telenor");
+		delay(5000);
+	}
+  Serial.println("Connected!");
+
+  gpsLib.setup(9600, BAUD, false);
   dht.begin();
-  //usbGps.setup();
 }
 
 void loop()
 {
-  gpsLib.loop();
-
   if (millis() > lastMillis + interval)
   {
-    interval = 15000;
+    //interval = 15000;
     //Serial.print(usbGps.rmcData);
 
     // Obtain values
     float temperature = dht.readTemperature();
-    float waterTemperature = 0.0;
     float humidity = dht.readHumidity();
     float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
     int qos = gprs.signalQuality();
@@ -72,12 +79,15 @@ void loop()
     char tmpBuf[16];
     //memset(json, 0, jsonSize);
 
+    for (size_t i = 0; i < jsonSize; i++)
+    {
+      json[i] = '\0';
+    }
+    
     // // Create Json string.
     strcat(json, "{");
     strcat(json, "\"tmp\":");
     strcat(json, dtostrf(temperature, 7, 2, tmpBuf)); // Temperature
-    strcat(json, ",\"wtp\":");
-    strcat(json, dtostrf(waterTemperature, 7, 2, tmpBuf)); // Water temperature
     strcat(json, ",\"hum\":");
     strcat(json, dtostrf(humidity, 7, 2, tmpBuf)); // Humidity
     strcat(json, ",\"hix\":");
@@ -100,4 +110,9 @@ void loop()
     sendData(json);
     lastMillis = millis();
   }
+  else
+  {
+      gpsLib.loop();
+  }
+  
 }
