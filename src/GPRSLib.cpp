@@ -14,6 +14,10 @@ void GPRSLib::setup(uint32_t baud, bool debug)
 {
 	pinMode(RESET_PIN, OUTPUT);
 	digitalWrite(RESET_PIN, HIGH);
+	delay(200);
+	digitalWrite(RESET_PIN, LOW);
+	delay(200);
+	digitalWrite(RESET_PIN, HIGH);
 
 	_baud = baud;
 	_debug = debug;
@@ -35,6 +39,48 @@ bool GPRSLib::gprsInit()
 		result = true;
 
 	return result;
+}
+
+void GPRSLib::gprsDebug()
+{
+	if (_serial1->available())
+	{
+		Serial.write(_serial1->read());
+	}
+	if (Serial.available())
+	{
+		_serial1->write(Serial.read());
+	}
+}
+
+bool GPRSLib::smsInit()
+{
+	//Set SMS mode to ASCII
+	_writeSerial(F("AT+CMGF=1\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return false;
+	delay(50);
+	//Start listening to New SMS Message Indications
+	_writeSerial(F("AT+CNMI=1,2,0,0,0\r"));
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+		return false;
+
+	return true;
+}
+
+void GPRSLib::smsRead()
+{
+	_readSerialUntilCrLf(_buffer, sizeof(_buffer));
+	char par[32];
+	_getResponseParams(_buffer, "+CMT:", 1, par, sizeof(par));
+	if(strstr(_buffer, "resetgsm") != NULL)
+	{
+		_resetGsm();
+	}
+	else if(strstr(_buffer, "reset") != NULL)
+	{
+		_reset();
+	}
 }
 
 bool GPRSLib::gprsIsConnected()
@@ -237,6 +283,20 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 //			PRIVATE METHODS			//
 //////////////////////////////////////
 
+void(* resetFunc) (void) = 0; //declare reset function @ address 0
+
+void GPRSLib::_reset()
+{
+	resetFunc();
+}
+
+void GPRSLib::_resetGsm()
+{
+	digitalWrite(RESET_PIN, LOW);
+	delay(500);
+	digitalWrite(RESET_PIN, HIGH);
+}
+
 void GPRSLib::_clearBuffer(char *buffer, uint32_t size)
 {
 	for (size_t i = 0; i < size; i++)
@@ -279,6 +339,8 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t buffer
 	uint32_t timerStart, timerEnd;
 	timerStart = millis();
 	char c;
+
+	_clearBuffer(buffer, bufferSize);
 
 	while (1)
 	{
@@ -369,6 +431,9 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 	timerStart = millis();
 	bool cr = false, lf = false;
 	char c;
+
+	if (startIndex > 0)
+		_clearBuffer(buffer, bufferSize);
 
 	while (1)
 	{

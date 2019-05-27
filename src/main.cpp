@@ -8,9 +8,14 @@
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD 9600
+#define GSM_DEBUG false
 
 unsigned long lastMillis = 0;
 unsigned long interval = 15000;
+unsigned long smsLastMillis = 0;
+unsigned long smsInterval = 5000;
+unsigned long gpsLastMillis = 0;
+unsigned long gpsInterval = 1000;
 bool usbReady = true;
 
 //GSMSim gsm(RX, TX);
@@ -43,6 +48,8 @@ void setup()
   gprs.setup(BAUD, false);
   Serial.print(F("Starting..."));
   delay(10000);
+
+  // Init GPRS.
 	gprs.gprsInit();
   delay(1000);
 	while(!gprs.gprsIsConnected()){
@@ -51,18 +58,24 @@ void setup()
 		delay(5000);
 	}
   Serial.println("Connected!");
+  gprs.smsInit();
 
+  // Init GPS.
   gpsLib.setup(9600, BAUD, false);
+
+  // Init Temperature sensor.
   dht.begin();
 }
 
 void loop()
 {
+  if(GSM_DEBUG){
+    gprs.gprsDebug();
+    return;
+  }
+
   if (millis() > lastMillis + interval)
   {
-    //interval = 15000;
-    //Serial.print(usbGps.rmcData);
-
     // Obtain values
     float temperature = dht.readTemperature();
     float humidity = dht.readHumidity();
@@ -110,9 +123,15 @@ void loop()
     sendData(json);
     lastMillis = millis();
   }
-  else
+  else if(millis() > smsLastMillis + smsInterval)
+  {
+    gprs.smsRead();
+    smsLastMillis = millis();
+  }
+  else if(millis() > gpsLastMillis + gpsInterval)
   {
       gpsLib.loop();
-  }
+      gpsLastMillis = millis();
+}
   
 }

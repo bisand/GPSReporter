@@ -91,6 +91,8 @@ private:
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
+    void _resetGsm();
+    void _reset();
 public:
     // uint8_t RX_PIN;
     // uint8_t TX_PIN;
@@ -107,6 +109,9 @@ public:
     Result gprsCloseConn();
     bool gprsIsConnected();
     bool gprsInit();
+    void gprsDebug();
+    bool smsInit();
+    void smsRead();
     Result connectBearer();
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);
