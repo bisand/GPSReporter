@@ -7,7 +7,7 @@
 #define RESET 2
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
-#define BAUD 9600
+#define BAUD 19200
 #define GSM_DEBUG false
 
 unsigned long lastMillis = 0;
@@ -15,7 +15,7 @@ unsigned long interval = 15000;
 unsigned long smsLastMillis = 0;
 unsigned long smsInterval = 5000;
 unsigned long gpsLastMillis = 0;
-unsigned long gpsInterval = 1000;
+unsigned long gpsInterval = 100;
 bool usbReady = true;
 
 //GSMSim gsm(RX, TX);
@@ -25,20 +25,13 @@ DHT dht(DHTPIN, DHTTYPE);
 
 void sendData(const char *data)
 {
-  char ipAddress[32];
   char httpResult[32];
 
-  Serial.print(F("Connect Bearer: \0"));
-  Serial.println(gprs.connectBearer("telenor"));
-  Serial.print(F("IP Address: "));
-  Serial.print(gprs.gprsGetIP(ipAddress, sizeof(ipAddress)));
-  Serial.println(ipAddress);
-  Serial.print(F("HTTP POST: "));
-  Serial.print(gprs.httpPost("https://bogenhuset.no/nodered/ais/blackpearl", data, "application/json", false, httpResult, sizeof(httpResult)));
-  Serial.println(httpResult);
-  delay(1000);
-  Serial.print(F("Closing connection: \0"));
-  Serial.println(gprs.gprsCloseConn());
+  gprs.connectBearer("telenor");
+  delay(500);
+  gprs.httpPost("https://bogenhuset.no/nodered/ais/blackpearl", data, "application/json", false, httpResult, sizeof(httpResult));
+  delay(500);
+  gprs.gprsCloseConn();
 }
 
 void setup()
@@ -50,13 +43,14 @@ void setup()
   delay(10000);
 
   // Init GPRS.
-	gprs.gprsInit();
+  gprs.gprsInit();
   delay(1000);
-	while(!gprs.gprsIsConnected()){
+  while (!gprs.gprsIsConnected())
+  {
     Serial.print(".");
-		gprs.connectBearer("telenor");
-		delay(5000);
-	}
+    gprs.connectBearer("telenor");
+    delay(5000);
+  }
   Serial.println("Connected!");
   gprs.smsInit();
 
@@ -69,12 +63,20 @@ void setup()
 
 void loop()
 {
-  if(GSM_DEBUG){
+  if (GSM_DEBUG)
+  {
     gprs.gprsDebug();
     return;
   }
 
-  if (millis() > lastMillis + interval)
+  gpsLib.loop();
+
+  if (millis() > smsLastMillis + smsInterval)
+  {
+    gprs.smsRead();
+    smsLastMillis = millis();
+  }
+  else if (millis() > lastMillis + interval)
   {
     // Obtain values
     float temperature = dht.readTemperature();
@@ -96,7 +98,7 @@ void loop()
     {
       json[i] = '\0';
     }
-    
+
     // // Create Json string.
     strcat(json, "{");
     strcat(json, "\"tmp\":");
@@ -119,19 +121,7 @@ void loop()
     strcat(json, ultoa(uptime, tmpBuf, 10)); // Uptime
     strcat(json, "}\0");
 
-    Serial.println(json);
     sendData(json);
     lastMillis = millis();
   }
-  else if(millis() > smsLastMillis + smsInterval)
-  {
-    gprs.smsRead();
-    smsLastMillis = millis();
-  }
-  else if(millis() > gpsLastMillis + gpsInterval)
-  {
-      gpsLib.loop();
-      gpsLastMillis = millis();
-}
-  
 }
