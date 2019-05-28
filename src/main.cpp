@@ -38,10 +38,18 @@ void setup()
 {
   Serial.begin(BAUD);
 
-  gprs.setup(BAUD, false);
   Serial.print(F("Starting..."));
-  delay(10000);
 
+  if (GSM_DEBUG)
+  {
+    gprs.setup(BAUD, false);
+    return;
+  }
+
+  gprs.setup(BAUD, false);
+  delay(10000);
+  // Init SMS.
+  gprs.smsInit();
   // Init GPRS.
   gprs.gprsInit();
   delay(1000);
@@ -52,7 +60,6 @@ void setup()
     delay(5000);
   }
   Serial.println("Connected!");
-  gprs.smsInit();
 
   // Init GPS.
   gpsLib.setup(9600, BAUD, false);
@@ -70,6 +77,7 @@ void loop()
   }
 
   gpsLib.loop();
+
 
   if (millis() > smsLastMillis + smsInterval)
   {
@@ -122,6 +130,7 @@ void loop()
     strcat(json, "}\0");
 
     sendData(json);
+
     lastMillis = millis();
   }
 }

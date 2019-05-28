@@ -61,25 +61,129 @@ bool GPRSLib::smsInit()
 		return false;
 	delay(50);
 	//Start listening to New SMS Message Indications
-	_writeSerial(F("AT+CNMI=1,2,0,0,0\r"));
+	_writeSerial(F("AT+CNMI=0,0,0,0,0\r"));
 	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 		return false;
+
+	for (size_t i = 0; i < 100; i++)
+	{
+		_writeSerial(F("AT+CMGD="));
+		char num[8];
+		_clearBuffer(num, sizeof(num));
+		itoa(i, num, 10);
+		_writeSerial(num);
+		_writeSerial(F("\r"));
+		char tmp[32];
+		_readSerialUntilOkOrError(tmp, sizeof(tmp));
+	}
+
 
 	return true;
 }
 
 void GPRSLib::smsRead()
 {
-	_readSerialUntilCrLf(_buffer, sizeof(_buffer));
-	char par[32];
-	_getResponseParams(_buffer, "+CMT:", 1, par, sizeof(par));
-	if(strstr(_buffer, "resetgsm") != NULL)
+	// Example:
+	// AT+CMGL="ALL"
+	// +CMGL: 1,"REC UNREAD","+4798802600","","19/05/28,21:15:44+08"
+	// Test 1
+	// Test 2
+	//
+	// +CMGL: 2,"REC UNREAD","+4798802600","","19/05/28,21:15:48+08"
+	// Test 3
+	//
+	// OK
+
+	_writeSerial(F("AT+CMGL=\"ALL\"\r"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
+	if (res == FOUND_EITHER_TEXT)
 	{
-		_resetGsm();
+		uint32_t len = strlen(_buffer);
+		uint8_t count = 0;
+		bool cr, lf;
+		cr = lf = false;
+		uint8_t lilen = 100;
+		char line[lilen];
+		bool newMsg = false;
+		char idx[8];
+		uint32_t msgIdx = 0;
+		for (size_t i = 0; i < len; i++)
+		{
+			char c = _buffer[i];
+			if (count < lilen - 1)
+			{
+				line[count] = c;
+				line[count + 1] = '\0';
+			}
+			if (c == '\r')
+				cr = true;
+			if (c == '\n')
+				lf = true;
+			if (cr && lf)
+			{
+				cr = lf = false;
+				if (!newMsg && strstr(line, "+CMGL:") != NULL)
+				{
+					_getResponseParams(line, "+CMGL:", 1, idx, sizeof(idx));
+					msgIdx = atoi(idx);
+					itoa(msgIdx, idx, 10);
+					newMsg = true;
+					count = 0;
+				}
+				else if (newMsg && count > 0)
+				{
+					if (strcasestr(line, "resetgsm") != NULL)
+					{
+						Serial.println(F("Reset GSM"));
+						// _resetGsm();
+					}
+					else if (strcasestr(line, "reset") != NULL)
+					{
+						Serial.println(F("Reset ALL"));
+						// _reset();
+					}
+					else
+					{
+						Serial.println(line);
+					}
+					count = 0;
+				}
+				else if (newMsg && count == 0)
+				{
+					_writeSerial(F("AT+CMGD="));
+					_writeSerial(idx);
+					_writeSerial(F("\r"));
+					char tmp[32];
+					res = _readSerialUntilOkOrError(tmp, sizeof(tmp));
+					if (res != FOUND_EITHER_TEXT)
+					{
+						Serial.print(F("Error deleting SMS: "));
+						Serial.println(msgIdx);
+					}
+					newMsg = false;
+					msgIdx = 0;
+					count = 0;
+				}
+			}
+			else if (!cr && !lf)
+			{
+				count++;
+			}
+		}
 	}
-	else if(strstr(_buffer, "reset") != NULL)
+	else if (res == INDEX_EXCEEDED_BUFFER_SIZE)
 	{
-		_reset();
+		for (size_t i = 0; i < 100; i++)
+		{
+			_writeSerial(F("AT+CMGD="));
+			char num[8];
+			_clearBuffer(num, sizeof(num));
+			itoa(i, num, 10);
+			_writeSerial(num);
+			_writeSerial(F("\r"));
+			char tmp[32];
+			res = _readSerialUntilOkOrError(tmp, sizeof(tmp));
+		}
 	}
 }
 
@@ -170,7 +274,6 @@ Result GPRSLib::connectBearer(const char *apn, const char *username, const char 
 	int res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 	char out[8];
 	_getResponseParams(_buffer, "+SAPBR:", 2, out, sizeof(out));
-	Serial.println(out);
 	if (res != FOUND_EITHER_TEXT || atoi(out) != 1)
 		return ERROR_OPEN_GPRS_CONTEXT;
 
@@ -283,7 +386,7 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 //			PRIVATE METHODS			//
 //////////////////////////////////////
 
-void(* resetFunc) (void) = 0; //declare reset function @ address 0
+void (*resetFunc)(void) = 0; //declare reset function @ address 0
 
 void GPRSLib::_reset()
 {
@@ -426,7 +529,8 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 	if (startIndex >= bufferSize)
 		return 0;
 
-	uint64_t index = startIndex;
+	uint32_t index = startIndex;
+	uint32_t count = 0;
 	uint64_t timerStart, timerEnd;
 	timerStart = millis();
 	bool cr = false, lf = false;
@@ -446,6 +550,7 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 				lf = true;
 			buffer[index++] = c;
 			buffer[index] = '\0';
+			count++;
 			if (cr && lf)
 				break;
 			if (index >= bufferSize - 1)
@@ -470,7 +575,7 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 		Serial.println(buffer);
 	}
 
-	return index;
+	return count;
 }
 
 int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
@@ -482,7 +587,7 @@ int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 		Serial.print(F("[DEBUG] [_writeSerial] -> \0"));
 		Serial.println(buffer);
 	}
-	delay(50);
+	// delay(50);
 	return strlen_P((const char *)buffer);
 }
 
