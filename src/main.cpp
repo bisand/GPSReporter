@@ -74,7 +74,7 @@ void initConfig()
 {
   char cfgOk[CFG_OK_LEN];
   readConfig(CFG_OK_START, CFG_OK_LEN, cfgOk);
-  if (!strcmp(cfgOk, "OK"))
+  if (strcmp(cfgOk, "OK") != 0)
   {
     for (int i = 0; i < EEPROM.length(); i++)
     {
