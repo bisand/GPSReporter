@@ -1,6 +1,7 @@
 #include "DHT.h"
 #include "GPSLib.h"
 #include "GPRSLib.h"
+#include "EEPROM.h"
 
 #define RX 8
 #define TX 9
@@ -34,11 +35,110 @@ void sendData(const char *data)
   gprs.gprsCloseConn();
 }
 
+#define CONFIG_TEST_START 0
+#define CONFIG_TEST_LENGTH 2
+#define CONFIG_MMSI_START CONFIG_TEST_START + CONFIG_TEST_LENGTH
+#define CONFIG_MMSI_LENGTH 16
+#define CONFIG_NAME_START CONFIG_MMSI_START + CONFIG_MMSI_LENGTH
+#define CONFIG_NAME_LENGTH 20
+#define CONFIG_CALLSIGN_START CONFIG_NAME_START + CONFIG_NAME_LENGTH
+#define CONFIG_CALLSIGN_LENGTH 10
+
+char mmsi[CONFIG_MMSI_LENGTH];
+char name[CONFIG_NAME_LENGTH];
+char callsign[CONFIG_CALLSIGN_LENGTH];
+
+void readConfig(uint16_t start, uint16_t length, char *data)
+{
+  for (size_t i = 0; i < length; i++)
+  {
+    data[i] = (char)EEPROM.read(start + i);
+  }
+}
+
+void writeConfig(uint16_t start, uint16_t length, const char *data)
+{
+  for (size_t i = 0; i < length; i++)
+  {
+    if (i < strlen(data))
+      EEPROM.update(start + i, (uint8_t)data[i]);
+    else
+      EEPROM.update(start + i, '\0');
+  }
+}
+
+void initConfig()
+{
+  char cfgTest[CONFIG_TEST_LENGTH];
+  readConfig(CONFIG_TEST_START, CONFIG_TEST_LENGTH, cfgTest);
+  if (!strcmp(cfgTest, "OK"))
+  {
+    for (int i = 0; i < EEPROM.length(); i++)
+    {
+      EEPROM.write(i, 0);
+    }
+    writeConfig(CONFIG_TEST_START, CONFIG_TEST_LENGTH, "OK");
+    writeConfig(CONFIG_MMSI_START, CONFIG_MMSI_LENGTH, "000000000");
+    writeConfig(CONFIG_NAME_START, CONFIG_NAME_LENGTH, "");
+    writeConfig(CONFIG_CALLSIGN_START, CONFIG_CALLSIGN_LENGTH, "");
+  }
+}
+
+void smsReceived(const char *tel, const char *msg)
+{
+  if (strcasestr(msg, "resetgsm") != NULL)
+  {
+    Serial.println(F("Reset GSM"));
+    // _resetGsm();
+  }
+  else if (strcasestr(msg, "reset") != NULL)
+  {
+    Serial.println(F("Reset ALL"));
+    // _reset();
+  }
+  else if (strcasestr(msg, "mmsi") != NULL)
+  {
+    char tmp[CONFIG_MMSI_LENGTH];
+    gprs.getValue(msg, "mmsi", 1, tmp, sizeof(tmp));
+    writeConfig(CONFIG_MMSI_START, CONFIG_MMSI_LENGTH, tmp);
+    strcpy(mmsi, tmp);
+    Serial.print(F("MMSI: "));
+    Serial.println(tmp);
+  }
+  else if (strcasestr(msg, "callsign") != NULL)
+  {
+    char tmp[CONFIG_CALLSIGN_LENGTH];
+    gprs.getValue(msg, "callsign", 1, tmp, sizeof(tmp));
+    writeConfig(CONFIG_CALLSIGN_START, CONFIG_CALLSIGN_LENGTH, tmp);
+    strcpy(callsign, tmp);
+    Serial.print(F("Callsign: "));
+    Serial.println(tmp);
+  }
+  else if (strcasestr(msg, "shipname") != NULL)
+  {
+    char tmp[CONFIG_NAME_LENGTH];
+    gprs.getValue(msg, "shipname", 1, tmp, sizeof(tmp));
+    writeConfig(CONFIG_NAME_START, CONFIG_NAME_LENGTH, tmp);
+    strcpy(name, tmp);
+    Serial.print(F("Ship name: "));
+    Serial.println(tmp);
+  }
+  else
+  {
+    Serial.println(msg);
+  }
+}
+
 void setup()
 {
   Serial.begin(BAUD);
 
   Serial.print(F("Starting..."));
+
+  initConfig();
+  readConfig(CONFIG_MMSI_START, CONFIG_MMSI_LENGTH, mmsi);
+  readConfig(CONFIG_NAME_START, CONFIG_NAME_LENGTH, name);
+  readConfig(CONFIG_CALLSIGN_START, CONFIG_CALLSIGN_LENGTH, callsign);
 
   if (GSM_DEBUG)
   {
@@ -49,6 +149,7 @@ void setup()
   gprs.setup(BAUD, false);
   delay(10000);
   // Init SMS.
+  gprs.setSmsCallback(smsReceived);
   gprs.smsInit();
   // Init GPRS.
   gprs.gprsInit();
@@ -77,7 +178,6 @@ void loop()
   }
 
   gpsLib.loop();
-
 
   if (millis() > smsLastMillis + smsInterval)
   {
@@ -109,6 +209,12 @@ void loop()
 
     // // Create Json string.
     strcat(json, "{");
+    strcat(json, "\"mmsi\":");
+    strcat(json, mmsi); // Temperature
+    strcat(json, "\"callsign\":");
+    strcat(json, callsign); // Temperature
+    strcat(json, "\"name\":");
+    strcat(json, name); // Temperature
     strcat(json, "\"tmp\":");
     strcat(json, dtostrf(temperature, 7, 2, tmpBuf)); // Temperature
     strcat(json, ",\"hum\":");

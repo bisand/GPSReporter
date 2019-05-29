@@ -53,6 +53,11 @@ void GPRSLib::gprsDebug()
 	}
 }
 
+void GPRSLib::setSmsCallback(void (*smsCallback)(const char *tel, const char *msg))
+{
+	_smsCallback = smsCallback;
+}
+
 bool GPRSLib::smsInit()
 {
 	//Set SMS mode to ASCII
@@ -76,7 +81,6 @@ bool GPRSLib::smsInit()
 		char tmp[32];
 		_readSerialUntilOkOrError(tmp, sizeof(tmp));
 	}
-
 
 	return true;
 }
@@ -106,6 +110,7 @@ void GPRSLib::smsRead()
 		char line[lilen];
 		bool newMsg = false;
 		char idx[8];
+		char tel[20];
 		uint32_t msgIdx = 0;
 		for (size_t i = 0; i < len; i++)
 		{
@@ -132,20 +137,8 @@ void GPRSLib::smsRead()
 				}
 				else if (newMsg && count > 0)
 				{
-					if (strcasestr(line, "resetgsm") != NULL)
-					{
-						Serial.println(F("Reset GSM"));
-						// _resetGsm();
-					}
-					else if (strcasestr(line, "reset") != NULL)
-					{
-						Serial.println(F("Reset ALL"));
-						// _reset();
-					}
-					else
-					{
-						Serial.println(line);
-					}
+					if(_smsCallback != NULL)
+						_smsCallback(tel, line);
 					count = 0;
 				}
 				else if (newMsg && count == 0)
@@ -380,6 +373,35 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 	_readSerialUntilOkOrError(_buffer, sizeof(_buffer));
 
 	return SUCCESS;
+}
+
+bool GPRSLib::getValue(const char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength)
+{
+	bool result = false;
+	uint8_t idx = 0;
+	uint8_t cmdLen = strlen(cmd);
+	char *foundCmd = strstr(buffer, cmd);
+	if (!foundCmd)
+	{
+		return result;
+	}
+
+	_clearBuffer(output, outputLength);
+
+	char *tok, *r, *end;
+	r = end = strdup(&foundCmd[cmdLen]);
+
+	while ((tok = strsep(&end, " ")) != NULL)
+	{
+		if (++idx == paramNum)
+		{
+			strncpy(output, tok, outputLength);
+			result = true;
+			break;
+		}
+	}
+	free(r);
+	return result;
 }
 
 //////////////////////////////////////

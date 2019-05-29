@@ -32,7 +32,9 @@ void GPSLib::loop()
 {
     while (_gps->available(gpsPort))
     {
-        fix = _gps->read();
+        gps_fix f = _gps->read();
+        if (f.valid.location && f.latitude() != 0 && f.longitude() != 0)
+            fix = f;
 
         if (!_debug)
             continue;
@@ -46,7 +48,8 @@ void GPSLib::loop()
         }
 
         Serial.print(F(", Altitude: "));
-        if (fix.valid.altitude){
+        if (fix.valid.altitude)
+        {
             Serial.print(fix.altitude());
         }
         Serial.println();

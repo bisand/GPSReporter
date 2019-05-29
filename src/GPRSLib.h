@@ -93,6 +93,7 @@ private:
     void _trimChar(char *buffer, char chr);
     void _resetGsm();
     void _reset();
+    void (*_smsCallback)(const char* tel, const char* msg);
 public:
     // uint8_t RX_PIN;
     // uint8_t TX_PIN;
@@ -104,6 +105,7 @@ public:
     GPRSLib(/* args */);
     ~GPRSLib();
 
+    void setSmsCallback(void (*smsCallback)(const char* tel, const char* msg));
     void setup(uint32_t baud, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
@@ -117,4 +119,5 @@ public:
     Result connectBearer(const char *apn, const char *username, const char *password);
     uint8_t signalQuality();
     Result httpPost(const char *url, const char *data, const char *contentType, bool read, char *output, unsigned int outputSize);
+    bool getValue(const char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
 };
