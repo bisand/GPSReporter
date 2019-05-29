@@ -77,7 +77,7 @@ void initConfig()
   readConfig(CFG_OK_START, CFG_OK_LEN, cfgOk);
   if (strcmp(cfgOk, "OK") != 0)
   {
-    for (int i = 0; i < EEPROM.length(); i++)
+    for (uint16_t i = 0; i < EEPROM.length(); i++)
     {
       EEPROM.write(i, 0);
     }
