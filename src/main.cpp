@@ -2,6 +2,7 @@
 #include "GPSLib.h"
 #include "GPRSLib.h"
 #include "EEPROM.h"
+#include "ArduinoUniqueID.h"
 
 #define RX 8
 #define TX 9
@@ -51,6 +52,17 @@ char owner[CFG_OWNER_LEN];
 char mmsi[CFG_MMSI_LEN];
 char shipname[CFG_SHIPNAME_LEN];
 char callsign[CFG_CALLSIGN_LEN];
+
+void getUniqueId(char *id)
+{
+	for (size_t i = 0; i < 8; i++)
+	{
+		if (UniqueID8[i] < 0x10)
+			Serial.print("0");
+		Serial.print(UniqueID8[i], HEX);
+		Serial.print(" ");
+	}
+
 
 void readConfig(uint16_t start, uint16_t length, char *data)
 {
