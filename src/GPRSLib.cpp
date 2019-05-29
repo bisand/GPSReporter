@@ -132,6 +132,8 @@ void GPRSLib::smsRead()
 					_getResponseParams(line, "+CMGL:", 1, idx, sizeof(idx));
 					msgIdx = atoi(idx);
 					itoa(msgIdx, idx, 10);
+					_getResponseParams(line, "+CMGL:", 3, tel, sizeof(tel));
+					_trimChar(tel, '\"');
 					newMsg = true;
 					count = 0;
 				}

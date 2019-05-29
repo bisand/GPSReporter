@@ -35,18 +35,21 @@ void sendData(const char *data)
   gprs.gprsCloseConn();
 }
 
-#define CONFIG_TEST_START 0
-#define CONFIG_TEST_LENGTH 2
-#define CONFIG_MMSI_START CONFIG_TEST_START + CONFIG_TEST_LENGTH
-#define CONFIG_MMSI_LENGTH 16
-#define CONFIG_NAME_START CONFIG_MMSI_START + CONFIG_MMSI_LENGTH
-#define CONFIG_NAME_LENGTH 20
-#define CONFIG_CALLSIGN_START CONFIG_NAME_START + CONFIG_NAME_LENGTH
-#define CONFIG_CALLSIGN_LENGTH 10
+#define CFG_OK_START 0
+#define CFG_OK_LEN 2
+#define CFG_OWNER_START CFG_OK_START + CFG_OK_LEN
+#define CFG_OWNER_LEN 16
+#define CFG_MMSI_START CFG_OWNER_START + CFG_OWNER_LEN
+#define CFG_MMSI_LEN 16
+#define CFG_SHIPNAME_START CFG_MMSI_START + CFG_MMSI_LEN
+#define CFG_SHIPNAME_LEN 20
+#define CFG_CALLSIGN_START CFG_SHIPNAME_START + CFG_SHIPNAME_LEN
+#define CFG_CALLSIGN_LEN 10
 
-char mmsi[CONFIG_MMSI_LENGTH];
-char name[CONFIG_NAME_LENGTH];
-char callsign[CONFIG_CALLSIGN_LENGTH];
+char owner[CFG_OWNER_LEN];
+char mmsi[CFG_MMSI_LEN];
+char shipname[CFG_SHIPNAME_LEN];
+char callsign[CFG_CALLSIGN_LEN];
 
 void readConfig(uint16_t start, uint16_t length, char *data)
 {
@@ -69,23 +72,40 @@ void writeConfig(uint16_t start, uint16_t length, const char *data)
 
 void initConfig()
 {
-  char cfgTest[CONFIG_TEST_LENGTH];
-  readConfig(CONFIG_TEST_START, CONFIG_TEST_LENGTH, cfgTest);
-  if (!strcmp(cfgTest, "OK"))
+  char cfgOk[CFG_OK_LEN];
+  readConfig(CFG_OK_START, CFG_OK_LEN, cfgOk);
+  if (!strcmp(cfgOk, "OK"))
   {
     for (int i = 0; i < EEPROM.length(); i++)
     {
       EEPROM.write(i, 0);
     }
-    writeConfig(CONFIG_TEST_START, CONFIG_TEST_LENGTH, "OK");
-    writeConfig(CONFIG_MMSI_START, CONFIG_MMSI_LENGTH, "000000000");
-    writeConfig(CONFIG_NAME_START, CONFIG_NAME_LENGTH, "");
-    writeConfig(CONFIG_CALLSIGN_START, CONFIG_CALLSIGN_LENGTH, "");
+    writeConfig(CFG_OK_START, CFG_OK_LEN, "OK");
+    writeConfig(CFG_MMSI_START, CFG_MMSI_LEN, "000000000");
+    writeConfig(CFG_SHIPNAME_START, CFG_SHIPNAME_LEN, "");
+    writeConfig(CFG_CALLSIGN_START, CFG_CALLSIGN_LEN, "");
   }
 }
 
 void smsReceived(const char *tel, const char *msg)
 {
+  char owner[CFG_OWNER_LEN];
+  readConfig(CFG_OWNER_START, CFG_OWNER_LEN, owner);
+  if (strlen(owner) < 1)
+  {
+    strcpy(owner, tel);
+    writeConfig(CFG_OWNER_START, CFG_OWNER_LEN, owner);
+  }
+  if (strcmp(owner, tel) != 0)
+  {
+    Serial.print(F("User \""));
+    Serial.print(tel);
+    Serial.println(F("\" is not authenticated."));
+    Serial.print(F("Expected: \""));
+    Serial.print(owner);
+    Serial.print(F("\""));
+    return;
+  }
   if (strcasestr(msg, "resetgsm") != NULL)
   {
     Serial.println(F("Reset GSM"));
@@ -98,28 +118,28 @@ void smsReceived(const char *tel, const char *msg)
   }
   else if (strcasestr(msg, "mmsi") != NULL)
   {
-    char tmp[CONFIG_MMSI_LENGTH];
+    char tmp[CFG_MMSI_LEN];
     gprs.getValue(msg, "mmsi", 1, tmp, sizeof(tmp));
-    writeConfig(CONFIG_MMSI_START, CONFIG_MMSI_LENGTH, tmp);
+    writeConfig(CFG_MMSI_START, CFG_MMSI_LEN, tmp);
     strcpy(mmsi, tmp);
     Serial.print(F("MMSI: "));
     Serial.println(tmp);
   }
   else if (strcasestr(msg, "callsign") != NULL)
   {
-    char tmp[CONFIG_CALLSIGN_LENGTH];
+    char tmp[CFG_CALLSIGN_LEN];
     gprs.getValue(msg, "callsign", 1, tmp, sizeof(tmp));
-    writeConfig(CONFIG_CALLSIGN_START, CONFIG_CALLSIGN_LENGTH, tmp);
+    writeConfig(CFG_CALLSIGN_START, CFG_CALLSIGN_LEN, tmp);
     strcpy(callsign, tmp);
     Serial.print(F("Callsign: "));
     Serial.println(tmp);
   }
   else if (strcasestr(msg, "shipname") != NULL)
   {
-    char tmp[CONFIG_NAME_LENGTH];
+    char tmp[CFG_SHIPNAME_LEN];
     gprs.getValue(msg, "shipname", 1, tmp, sizeof(tmp));
-    writeConfig(CONFIG_NAME_START, CONFIG_NAME_LENGTH, tmp);
-    strcpy(name, tmp);
+    writeConfig(CFG_SHIPNAME_START, CFG_SHIPNAME_LEN, tmp);
+    strcpy(shipname, tmp);
     Serial.print(F("Ship name: "));
     Serial.println(tmp);
   }
@@ -136,9 +156,9 @@ void setup()
   Serial.print(F("Starting..."));
 
   initConfig();
-  readConfig(CONFIG_MMSI_START, CONFIG_MMSI_LENGTH, mmsi);
-  readConfig(CONFIG_NAME_START, CONFIG_NAME_LENGTH, name);
-  readConfig(CONFIG_CALLSIGN_START, CONFIG_CALLSIGN_LENGTH, callsign);
+  readConfig(CFG_MMSI_START, CFG_MMSI_LEN, mmsi);
+  readConfig(CFG_SHIPNAME_START, CFG_SHIPNAME_LEN, shipname);
+  readConfig(CFG_CALLSIGN_START, CFG_CALLSIGN_LEN, callsign);
 
   if (GSM_DEBUG)
   {
@@ -213,8 +233,8 @@ void loop()
     strcat(json, mmsi); // Temperature
     strcat(json, "\"callsign\":");
     strcat(json, callsign); // Temperature
-    strcat(json, "\"name\":");
-    strcat(json, name); // Temperature
+    strcat(json, "\"shipname\":");
+    strcat(json, shipname); // Temperature
     strcat(json, "\"tmp\":");
     strcat(json, dtostrf(temperature, 7, 2, tmpBuf)); // Temperature
     strcat(json, ",\"hum\":");
