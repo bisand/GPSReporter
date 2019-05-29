@@ -76,7 +76,7 @@ private:
     uint32_t _timeout = TIME_OUT_READ_SERIAL;
     AltSoftSerial *_serial1;
     bool _debug;
-    Stream &_debugger;
+    Stream *_debugger;
     char _buffer[BUFFER_RESERVE_MEMORY];
 
     void _clearBuffer(char *buffer, uint32_t size);

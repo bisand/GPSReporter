@@ -53,16 +53,16 @@ char mmsi[CFG_MMSI_LEN];
 char shipname[CFG_SHIPNAME_LEN];
 char callsign[CFG_CALLSIGN_LEN];
 
-void getUniqueId(char *id)
+void getUniqueId(char *id, uint8_t size)
 {
+  memset(id, '\0', size);
 	for (size_t i = 0; i < 8; i++)
 	{
-		if (UniqueID8[i] < 0x10)
-			Serial.print("0");
-		Serial.print(UniqueID8[i], HEX);
-		Serial.print(" ");
+    char num[2];
+    itoa(UniqueID8[i], num, 16);
+    strcat(id, num);
 	}
-
+}
 
 void readConfig(uint16_t start, uint16_t length, char *data)
 {

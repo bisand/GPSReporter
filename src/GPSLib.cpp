@@ -20,11 +20,11 @@ void GPSLib::_clearBuffer()
     }
 }
 
-void GPSLib::setup(uint32_t baud, Stream &debugger, bool debug = false)
+void GPSLib::setup(uint32_t baud, Stream &debugger, bool debug)
 {
     _debug = debug;
-    _debugger = debugger;
-    _debugger.println(F("GPSLib started"));
+    _debugger = &debugger;
+    _debugger->println(F("GPSLib started"));
 
     gpsPort.begin(baud);
 }
@@ -40,19 +40,19 @@ void GPSLib::loop()
         if (!_debug)
             continue;
 
-        _debugger.print(F("Location: "));
+        _debugger->print(F("Location: "));
         if (fix.valid.location)
         {
-            _debugger.print(fix.latitude(), 6);
-            _debugger.print(',');
-            _debugger.print(fix.longitude(), 6);
+            _debugger->print(fix.latitude(), 6);
+            _debugger->print(',');
+            _debugger->print(fix.longitude(), 6);
         }
 
-        _debugger.print(F(", Altitude: "));
+        _debugger->print(F(", Altitude: "));
         if (fix.valid.altitude)
         {
-            _debugger.print(fix.altitude());
+            _debugger->print(fix.altitude());
         }
-        _debugger.println();
+        _debugger->println();
     }
 }

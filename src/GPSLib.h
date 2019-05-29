@@ -6,7 +6,7 @@ class GPSLib
 private:
     NeoSWSerial *_serial1;
     bool _debug;
-    Stream &_debugger;
+    Stream *_debugger;
     char _buffer[255];
     uint32_t _index;
     bool _newline;
