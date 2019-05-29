@@ -9,6 +9,7 @@
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD 19200
+#define DEBUG false
 #define GSM_DEBUG false
 
 unsigned long lastMillis = 0;
@@ -89,6 +90,10 @@ void initConfig()
 
 void smsReceived(const char *tel, const char *msg)
 {
+  Serial.print(F("Receiving SMS from \""));
+  Serial.print(tel);
+  Serial.println(F("\""));
+
   char owner[CFG_OWNER_LEN];
   readConfig(CFG_OWNER_START, CFG_OWNER_LEN, owner);
   if (strlen(owner) < 1)
@@ -162,11 +167,11 @@ void setup()
 
   if (GSM_DEBUG)
   {
-    gprs.setup(BAUD, false);
+    gprs.setup(BAUD, Serial, DEBUG);
     return;
   }
 
-  gprs.setup(BAUD, false);
+  gprs.setup(BAUD, Serial, DEBUG);
   delay(10000);
   // Init SMS.
   gprs.setSmsCallback(smsReceived);
@@ -183,7 +188,7 @@ void setup()
   Serial.println("Connected!");
 
   // Init GPS.
-  gpsLib.setup(9600, BAUD, false);
+  gpsLib.setup(9600, Serial, DEBUG);
 
   // Init Temperature sensor.
   dht.begin();

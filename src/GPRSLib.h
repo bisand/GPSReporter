@@ -76,6 +76,7 @@ private:
     uint32_t _timeout = TIME_OUT_READ_SERIAL;
     AltSoftSerial *_serial1;
     bool _debug;
+    Stream &_debugger;
     char _buffer[BUFFER_RESERVE_MEMORY];
 
     void _clearBuffer(char *buffer, uint32_t size);
@@ -106,7 +107,7 @@ public:
     ~GPRSLib();
 
     void setSmsCallback(void (*smsCallback)(const char* tel, const char* msg));
-    void setup(uint32_t baud, bool debug = false);
+    void setup(uint32_t baud, Stream &debugger, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
     bool gprsIsConnected();
