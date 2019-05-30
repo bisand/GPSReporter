@@ -16,9 +16,9 @@ void GPRSLib::setup(uint32_t baud, Stream &debugger, bool debug)
 	_debugger = &debugger;
 	pinMode(RESET_PIN, OUTPUT);
 	digitalWrite(RESET_PIN, HIGH);
-	delay(200);
+	delay(500);
 	digitalWrite(RESET_PIN, LOW);
-	delay(200);
+	delay(500);
 	digitalWrite(RESET_PIN, HIGH);
 
 	_baud = baud;
@@ -55,7 +55,7 @@ void GPRSLib::gprsDebug()
 	}
 }
 
-void GPRSLib::setSmsCallback(void (*smsCallback)(const char *tel, const char *msg))
+void GPRSLib::setSmsCallback(void (*smsCallback)(const char *tel, char *msg))
 {
 	_smsCallback = smsCallback;
 }
@@ -72,17 +72,17 @@ bool GPRSLib::smsInit()
 	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
 		return false;
 
-	for (size_t i = 0; i < 100; i++)
-	{
-		_writeSerial(F("AT+CMGD="));
-		char num[8];
-		_clearBuffer(num, sizeof(num));
-		itoa(i, num, 10);
-		_writeSerial(num);
-		_writeSerial(F("\r"));
-		char tmp[32];
-		_readSerialUntilOkOrError(tmp, sizeof(tmp));
-	}
+	// for (size_t i = 0; i < 5; i++)
+	// {
+	// 	_writeSerial(F("AT+CMGD="));
+	// 	char num[8];
+	// 	_clearBuffer(num, sizeof(num));
+	// 	itoa(i, num, 10);
+	// 	_writeSerial(num);
+	// 	_writeSerial(F("\r"));
+	// 	char tmp[32];
+	// 	_readSerialUntilOkOrError(tmp, sizeof(tmp));
+	// }
 
 	return true;
 }
@@ -100,86 +100,60 @@ void GPRSLib::smsRead()
 	//
 	// OK
 
+	bool newMsg = false;
+	char idx[8];
+	char tel[20];
+	uint64_t timerStart, timerEnd;
+	uint32_t timeout = 5000;
+	uint8_t msgIdx = 0;
+	uint8_t msgIds[10];
+	uint8_t msgCount = 0;
+	timerStart = millis();
 	_writeSerial(F("AT+CMGL=\"ALL\"\r"));
-	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
-	if (res == FOUND_EITHER_TEXT)
+	do
 	{
-		uint32_t len = strlen(_buffer);
-		uint8_t count = 0;
-		bool cr, lf;
-		cr = lf = false;
-		uint8_t lilen = 100;
-		char line[lilen];
-		bool newMsg = false;
-		char idx[8];
-		char tel[20];
-		uint32_t msgIdx = 0;
-		for (size_t i = 0; i < len; i++)
+		_readSerialUntilCrLf(_buffer, sizeof(_buffer));
+		if (!newMsg && strstr(_buffer, "+CMGL:") != NULL)
 		{
-			char c = _buffer[i];
-			if (count < lilen - 1)
-			{
-				line[count] = c;
-				line[count + 1] = '\0';
-			}
-			if (c == '\r')
-				cr = true;
-			if (c == '\n')
-				lf = true;
-			if (cr && lf)
-			{
-				cr = lf = false;
-				if (!newMsg && strstr(line, "+CMGL:") != NULL)
-				{
-					_getResponseParams(line, "+CMGL:", 1, idx, sizeof(idx));
-					msgIdx = atoi(idx);
-					itoa(msgIdx, idx, 10);
-					_getResponseParams(line, "+CMGL:", 3, tel, sizeof(tel));
-					_trimChar(tel, '\"');
-					newMsg = true;
-					count = 0;
-				}
-				else if (newMsg && count > 0)
-				{
-					if(_smsCallback != NULL)
-						_smsCallback(tel, line);
-					count = 0;
-				}
-				else if (newMsg && count == 0)
-				{
-					_writeSerial(F("AT+CMGD="));
-					_writeSerial(idx);
-					_writeSerial(F("\r"));
-					char tmp[32];
-					res = _readSerialUntilOkOrError(tmp, sizeof(tmp));
-					if (res != FOUND_EITHER_TEXT)
-					{
-						_debugger->print(F("Error deleting SMS: "));
-						_debugger->println(msgIdx);
-					}
-					newMsg = false;
-					msgIdx = 0;
-					count = 0;
-				}
-			}
-			else if (!cr && !lf)
-			{
-				count++;
-			}
+			_getResponseParams(_buffer, "+CMGL:", 1, idx, sizeof(idx));
+			msgIdx = atoi(idx);
+			itoa(msgIdx, idx, 10);
+			_getResponseParams(_buffer, "+CMGL:", 3, tel, sizeof(tel));
+			_trimChar(tel, '\"');
+			msgIds[msgCount++] = msgIdx;
+			newMsg = true;
 		}
-	}
-	else if (res == INDEX_EXCEEDED_BUFFER_SIZE)
-	{
-		for (size_t i = 0; i < 100; i++)
+		else if (newMsg && strstr(_buffer, "OK\r\n") == NULL)
 		{
-			_writeSerial(F("AT+CMGD="));
-			char num[8];
-			_clearBuffer(num, sizeof(num));
-			itoa(i, num, 10);
-			_writeSerial(num);
-			_writeSerial(F("\r"));
-			char tmp[32];
-			res = _readSerialUntilOkOrError(tmp, sizeof(tmp));
+			if (_smsCallback != NULL && strlen(_buffer) > 1)
+				_smsCallback(tel, _buffer);
+		}
+		else if (newMsg && strstr(_buffer, "OK\r\n") != NULL)
+		{
+			newMsg = false;
+			msgIdx = 0;
+		}
+		timerEnd = millis();
+		if (timerEnd - timerStart > timeout)
+		{
+			break;
+		}
+
+	} while (strstr(_buffer, "OK\r\n") == NULL);
+
+	for (size_t i = 0; i < msgCount; i++)
+	{
+		char id[2];
+		itoa(msgIds[i], id, 10);
+		_writeSerial(F("AT+CMGD="));
+		_writeSerial(id);
+		_writeSerial(F("\r"));
+		char tmp[32];
+		ReadSerialResult r = _readSerialUntilOkOrError(tmp, sizeof(tmp));
+		if (r != FOUND_EITHER_TEXT)
+		{
+			_debugger->print(F("Error deleting SMS: "));
+			_debugger->println(msgIdx);
 		}
 	}
 }
@@ -338,8 +312,8 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 	itoa(strlen(data), dLen, 10);
 	_writeSerial(F("AT+HTTPDATA="));
 	_writeSerial(dLen);
-	_writeSerial(F(",30000\r"));
-	if (_readSerialUntilEitherOr(_buffer, sizeof(_buffer), "DOWNLOAD\r\n", "ERROR\r\n", 30000) != FOUND_EITHER_TEXT)
+	_writeSerial(F(",10000\r"));
+	if (_readSerialUntilEitherOr(_buffer, sizeof(_buffer), "DOWNLOAD\r\n", "ERROR\r\n", 10000) != FOUND_EITHER_TEXT)
 		return ERROR_HTTP_DATA;
 
 	// Send data.
@@ -350,19 +324,35 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 
 	// Set action and perform request 1=POST
 	_writeSerial(F("AT+HTTPACTION=1\r"));
-	delay(500);
 	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, sizeof(_buffer));
+	if (res != FOUND_EITHER_TEXT)
+		return ERROR_HTTP_POST;
+
+	delay(1000);
 	int idx = _readSerialUntilCrLf(_buffer, sizeof(_buffer));
 	idx = _readSerialUntilCrLf(_buffer, sizeof(_buffer), idx);
+
+	// uint16_t idx = 0;
+	// do
+	// {
+	// 	idx = _readSerialUntilCrLf(_buffer, sizeof(_buffer), idx);
+	// 	_debugger->println(_buffer);
+	// 	delay(50);
+	// 	_debugger->print(F("."));
+	// } while (strstr(_buffer, "+HTTPACTION:") == NULL);
+	// _debugger->println(F(""));
+	// _debugger->println(F("POST buffer: "));
+	// _debugger->println(_buffer);
+
 	char out[8];
 	_getResponseParams(_buffer, "+HTTPACTION:", 1, out, sizeof(out));
-	if (res != FOUND_EITHER_TEXT || atoi(out) != 1)
-		return ERROR_HTTP_POST;
+	if (atoi(out) != 1)
+		_debugger->print(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 2, out, sizeof(out));
 	int httpResult = atoi(out);
 	if (httpResult < 200 || httpResult >= 300)
-		return ERROR_HTTP_POST;
+		_debugger->print(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
 
 	if (read)
 	{
@@ -379,32 +369,33 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 	return SUCCESS;
 }
 
-bool GPRSLib::getValue(const char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength)
+bool GPRSLib::getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength)
 {
 	bool result = false;
 	uint8_t idx = 0;
-	uint8_t cmdLen = strlen(cmd);
-	char *foundCmd = strstr(buffer, cmd);
-	if (!foundCmd)
+	char *buf = strstr(buffer, cmd);
+	if (buf == NULL)
 	{
 		return result;
 	}
+	uint8_t cmdLen = strlen(cmd);
+	char *cmdBuf = strdup(&buf[cmdLen]);
 
 	_clearBuffer(output, outputLength);
 
-	char *tok, *r, *end;
-	r = end = strdup(&foundCmd[cmdLen]);
-
-	while ((tok = strsep(&end, " ")) != NULL)
+	char *pch;
+	pch = strtok(cmdBuf, " ");
+	while (pch != NULL)
 	{
 		if (++idx == paramNum)
 		{
-			strncpy(output, tok, outputLength);
+			strcpy(output, pch);
 			result = true;
 			break;
 		}
+		pch = strtok(NULL, " ");
 	}
-	free(r);
+	free(cmdBuf);
 	return result;
 }
 
@@ -514,11 +505,6 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t buffer
 		}
 	}
 
-	while (_serial1->available() > 0)
-		_serial1->read();
-
-	_serial1->flushInput();
-
 	if (_debug)
 	{
 		_debugger->println(F("[DEBUG] [_readSerialUntilEitherOr]\0"));
@@ -589,11 +575,6 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 			break;
 	}
 
-	while (_serial1->available() > 0)
-		_serial1->read();
-
-	_serial1->flushInput();
-
 	if (_debug)
 	{
 		_debugger->println(F("[DEBUG] [_readSerialUntilCrLf]\0"));
@@ -607,7 +588,7 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 {
 	_serial1->print(buffer);
-	_serial1->flushOutput();
+	//_serial1->flushOutput();
 	if (_debug)
 	{
 		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
@@ -620,13 +601,13 @@ int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 int GPRSLib::_writeSerial(const char *buffer)
 {
 	_serial1->print(buffer);
-	_serial1->flushOutput();
+	//_serial1->flushOutput();
 	if (_debug)
 	{
 		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
 		_debugger->println(buffer);
 	}
-	delay(50);
+	//delay(50);
 	return strlen_P(buffer);
 }
 
@@ -642,7 +623,8 @@ void GPRSLib::_trimChar(char *buffer, char chr)
 	uint32_t start = 0;
 	uint32_t len, l;
 	len = l = strlen(buffer);
-	bool sf, ef = false;
+	bool sf, ef;
+	sf = ef = false;
 	char *tmpBuf = strdup(buffer);
 	_clearBuffer(buffer, l);
 
@@ -670,27 +652,28 @@ bool GPRSLib::_getResponseParams(char *buffer, const char *cmd, uint8_t paramNum
 {
 	bool result = false;
 	uint8_t idx = 0;
-	uint8_t cmdLen = strlen(cmd);
-	char *foundCmd = strstr(buffer, cmd);
-	if (!foundCmd)
+	char *buf = strstr(buffer, cmd);
+	if (buf == NULL)
 	{
 		return result;
 	}
+	uint8_t cmdLen = strlen(cmd);
+	char *cmdBuf = strdup(&buf[cmdLen]);
 
 	_clearBuffer(output, outputLength);
 
-	char *tok, *r, *end;
-	r = end = strdup(&foundCmd[cmdLen]);
-
-	while ((tok = strsep(&end, ",\r\n\0")) != NULL)
+	char *pch;
+	pch = strtok(cmdBuf, ",\r\n");
+	while (pch != NULL)
 	{
 		if (++idx == paramNum)
 		{
-			strncpy(output, tok, outputLength);
+			strcpy(output, pch);
 			result = true;
 			break;
 		}
+		pch = strtok(NULL, ",\r\n");
 	}
-	free(r);
+	free(cmdBuf);
 	return result;
 }

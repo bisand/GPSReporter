@@ -31,14 +31,14 @@ void GPSLib::setup(uint32_t baud, Stream &debugger, bool debug)
 
 void GPSLib::loop()
 {
-    while (_gps->available(gpsPort))
+    if (_gps->available(gpsPort))
     {
         gps_fix f = _gps->read();
         if (f.valid.location && f.latitude() != 0 && f.longitude() != 0)
             fix = f;
 
         if (!_debug)
-            continue;
+            return;
 
         _debugger->print(F("Location: "));
         if (fix.valid.location)

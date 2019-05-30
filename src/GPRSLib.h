@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <AltSoftSerial.h>
 
-#define BUFFER_RESERVE_MEMORY 255
+#define BUFFER_RESERVE_MEMORY 200
 #define TIME_OUT_READ_SERIAL 5000
 
 // #define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"Contype\",\"GPRS\"\r\n"
@@ -94,7 +94,7 @@ private:
     void _trimChar(char *buffer, char chr);
     void _resetGsm();
     void _reset();
-    void (*_smsCallback)(const char* tel, const char* msg);
+    void (*_smsCallback)(const char* tel, char* msg);
 public:
     // uint8_t RX_PIN;
     // uint8_t TX_PIN;
@@ -106,7 +106,7 @@ public:
     GPRSLib(/* args */);
     ~GPRSLib();
 
-    void setSmsCallback(void (*smsCallback)(const char* tel, const char* msg));
+    void setSmsCallback(void (*smsCallback)(const char* tel, char* msg));
     void setup(uint32_t baud, Stream &debugger, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
@@ -120,5 +120,5 @@ public:
     Result connectBearer(const char *apn, const char *username, const char *password);
     uint8_t signalQuality();
     Result httpPost(const char *url, const char *data, const char *contentType, bool read, char *output, unsigned int outputSize);
-    bool getValue(const char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
+    bool getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
 };

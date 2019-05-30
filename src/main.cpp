@@ -16,9 +16,9 @@
 unsigned long lastMillis = 0;
 unsigned long interval = 15000;
 unsigned long smsLastMillis = 0;
-unsigned long smsInterval = 5000;
+unsigned long smsInterval = 10000;
 unsigned long gpsLastMillis = 0;
-unsigned long gpsInterval = 100;
+unsigned long gpsInterval = 50;
 bool usbReady = true;
 
 //GSMSim gsm(RX, TX);
@@ -31,9 +31,10 @@ void sendData(const char *data)
   char httpResult[32];
 
   gprs.connectBearer("telenor");
-  delay(500);
-  gprs.httpPost("https://bogenhuset.no/nodered/ais/blackpearl", data, "application/json", false, httpResult, sizeof(httpResult));
-  delay(500);
+  delay(50);
+  Serial.print(F("Posting data: "));
+  Serial.println(gprs.httpPost("https://bogenhuset.no/nodered/ais/blackpearl", data, "application/json", false, httpResult, sizeof(httpResult)));
+  delay(50);
   gprs.gprsCloseConn();
 }
 
@@ -56,12 +57,12 @@ char callsign[CFG_CALLSIGN_LEN];
 void getUniqueId(char *id, uint8_t size)
 {
   memset(id, '\0', size);
-	for (size_t i = 0; i < 8; i++)
-	{
+  for (size_t i = 0; i < 8; i++)
+  {
     char num[2];
     itoa(UniqueID8[i], num, 16);
     strcat(id, num);
-	}
+  }
 }
 
 void readConfig(uint16_t start, uint16_t length, char *data)
@@ -100,10 +101,13 @@ void initConfig()
   }
 }
 
-void smsReceived(const char *tel, const char *msg)
+void smsReceived(const char *tel, char *msg)
 {
   Serial.print(F("Receiving SMS from \""));
   Serial.print(tel);
+  Serial.println(F("\""));
+  Serial.print(F("With message: \""));
+  Serial.print(msg);
   Serial.println(F("\""));
 
   char owner[CFG_OWNER_LEN];
@@ -137,8 +141,8 @@ void smsReceived(const char *tel, const char *msg)
   {
     char tmp[CFG_MMSI_LEN];
     gprs.getValue(msg, "mmsi", 1, tmp, sizeof(tmp));
-    writeConfig(CFG_MMSI_START, CFG_MMSI_LEN, tmp);
-    strcpy(mmsi, tmp);
+    // writeConfig(CFG_MMSI_START, CFG_MMSI_LEN, tmp);
+    // strcpy(mmsi, tmp);
     Serial.print(F("MMSI: "));
     Serial.println(tmp);
   }
@@ -146,8 +150,8 @@ void smsReceived(const char *tel, const char *msg)
   {
     char tmp[CFG_CALLSIGN_LEN];
     gprs.getValue(msg, "callsign", 1, tmp, sizeof(tmp));
-    writeConfig(CFG_CALLSIGN_START, CFG_CALLSIGN_LEN, tmp);
-    strcpy(callsign, tmp);
+    // writeConfig(CFG_CALLSIGN_START, CFG_CALLSIGN_LEN, tmp);
+    // strcpy(callsign, tmp);
     Serial.print(F("Callsign: "));
     Serial.println(tmp);
   }
@@ -155,21 +159,42 @@ void smsReceived(const char *tel, const char *msg)
   {
     char tmp[CFG_SHIPNAME_LEN];
     gprs.getValue(msg, "shipname", 1, tmp, sizeof(tmp));
-    writeConfig(CFG_SHIPNAME_START, CFG_SHIPNAME_LEN, tmp);
-    strcpy(shipname, tmp);
+    // writeConfig(CFG_SHIPNAME_START, CFG_SHIPNAME_LEN, tmp);
+    // strcpy(shipname, tmp);
     Serial.print(F("Ship name: "));
     Serial.println(tmp);
   }
   else
   {
+    Serial.print(F("Unknown SMS: "));
     Serial.println(msg);
   }
+}
+
+#ifdef __arm__
+// should use uinstd.h to define sbrk but Due causes a conflict
+extern "C" char *sbrk(int incr);
+#else  // __ARM__
+extern char *__brkval;
+#endif // __arm__
+
+int freeMemory()
+{
+  char top;
+#ifdef __arm__
+  return &top - reinterpret_cast<char *>(sbrk(0));
+#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
+  return &top - __brkval;
+#else  // __arm__
+  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
+#endif // __arm__
 }
 
 void setup()
 {
   Serial.begin(BAUD);
 
+  Serial.println(F(""));
   Serial.print(F("Starting..."));
 
   initConfig();
@@ -184,7 +209,7 @@ void setup()
   }
 
   gprs.setup(BAUD, Serial, DEBUG);
-  delay(10000);
+  delay(5000);
   // Init SMS.
   gprs.setSmsCallback(smsReceived);
   gprs.smsInit();
@@ -193,11 +218,12 @@ void setup()
   delay(1000);
   while (!gprs.gprsIsConnected())
   {
-    Serial.print(".");
+    Serial.print(F("."));
     gprs.connectBearer("telenor");
     delay(5000);
   }
-  Serial.println("Connected!");
+  Serial.println(F(""));
+  Serial.println(F("Connected!"));
 
   // Init GPS.
   gpsLib.setup(9600, Serial, DEBUG);
@@ -214,15 +240,20 @@ void loop()
     return;
   }
 
-  gpsLib.loop();
-
-  if (millis() > smsLastMillis + smsInterval)
+  if (millis() > gpsLastMillis + gpsInterval)
   {
+    gpsLib.loop();
+    gpsLastMillis = millis();
+  }
+  else if (millis() > smsLastMillis + smsInterval)
+  {
+    Serial.println(F("Checking SMS"));
     gprs.smsRead();
     smsLastMillis = millis();
   }
   else if (millis() > lastMillis + interval)
   {
+    Serial.println(F("Publishing result..."));
     // Obtain values
     float temperature = dht.readTemperature();
     float humidity = dht.readHumidity();
@@ -246,13 +277,13 @@ void loop()
 
     // // Create Json string.
     strcat(json, "{");
-    strcat(json, "\"mmsi\":");
+    strcat(json, "\"mmsi\":\"");
     strcat(json, mmsi); // Temperature
-    strcat(json, "\"callsign\":");
+    strcat(json, "\",\"callsign\":\"");
     strcat(json, callsign); // Temperature
-    strcat(json, "\"shipname\":");
+    strcat(json, "\",\"shipname\":\"");
     strcat(json, shipname); // Temperature
-    strcat(json, "\"tmp\":");
+    strcat(json, "\",\"tmp\":");
     strcat(json, dtostrf(temperature, 7, 2, tmpBuf)); // Temperature
     strcat(json, ",\"hum\":");
     strcat(json, dtostrf(humidity, 7, 2, tmpBuf)); // Humidity
@@ -268,12 +299,17 @@ void loop()
     strcat(json, dtostrf(speed, 7, 2, tmpBuf)); // Speed over ground
     strcat(json, ",\"qos\":");
     strcat(json, dtostrf(qos, 7, 2, tmpBuf)); // GPRS signal quality
+    strcat(json, ",\"mem\":");
+    strcat(json, utoa(freeMemory(), tmpBuf, 10)); // Uptime
     strcat(json, ",\"upt\":");
     strcat(json, ultoa(uptime, tmpBuf, 10)); // Uptime
-    strcat(json, "}\0");
+    strcat(json, "}");
 
+    // Serial.println(json);
     sendData(json);
 
     lastMillis = millis();
+    Serial.println(F("Done!"));
+
   }
 }
