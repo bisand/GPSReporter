@@ -400,24 +400,23 @@ bool GPRSLib::getValue(char *buffer, const char *cmd, uint8_t paramNum, char *ou
 	return result;
 }
 
-//////////////////////////////////////
-//			PRIVATE METHODS			//
-//////////////////////////////////////
-
 void (*resetFunc)(void) = 0; //declare reset function @ address 0
 
-void GPRSLib::_reset()
+void GPRSLib::resetAll()
 {
 	resetFunc();
 }
 
-void GPRSLib::_resetGsm()
+void GPRSLib::resetGsm()
 {
 	digitalWrite(RESET_PIN, LOW);
 	delay(500);
 	digitalWrite(RESET_PIN, HIGH);
 }
 
+//////////////////////////////////////
+//			PRIVATE METHODS			//
+//////////////////////////////////////
 void GPRSLib::_clearBuffer(char *buffer, uint32_t size)
 {
 	for (size_t i = 0; i < size; i++)

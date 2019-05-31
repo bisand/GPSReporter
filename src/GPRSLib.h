@@ -92,8 +92,6 @@ private:
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
-    void _resetGsm();
-    void _reset();
     void (*_smsCallback)(const char* tel, char* msg);
 public:
     // uint8_t RX_PIN;
@@ -106,6 +104,8 @@ public:
     GPRSLib(/* args */);
     ~GPRSLib();
 
+    void resetAll();
+    void resetGsm();
     void setSmsCallback(void (*smsCallback)(const char* tel, char* msg));
     void setup(uint32_t baud, Stream &debugger, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
