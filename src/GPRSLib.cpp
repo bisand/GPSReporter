@@ -297,9 +297,10 @@ Result GPRSLib::httpPost(const char *url, const char *data, const char *contentT
 	_writeSerial(F("AT+HTTPPARA=\"URL\",\""));
 	_writeSerial(url);
 	_writeSerial(F("\"\r"));
-	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT)
+	if (_readSerialUntilOkOrError(_buffer, sizeof(_buffer)) != FOUND_EITHER_TEXT){
+		Serial.print(url);
 		return ERROR_HTTP_PARA;
-
+	}
 	// Set content type
 	_writeSerial(F("AT+HTTPPARA=\"CONTENT\",\""));
 	_writeSerial(contentType);

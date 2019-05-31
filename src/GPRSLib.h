@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <AltSoftSerial.h>
 
-#define BUFFER_RESERVE_MEMORY 200
+#define BUFFER_RESERVE_MEMORY 128
 #define TIME_OUT_READ_SERIAL 5000
 
 // #define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"Contype\",\"GPRS\"\r\n"
