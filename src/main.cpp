@@ -230,8 +230,8 @@ void setup()
   while (!gprs.gprsIsConnected())
   {
     Serial.print(F("."));
-    gprs.connectBearer(PSTR("telenor"));
-    delay(5000);
+    gprs.connectBearer("telenor");
+    delay(1000);
   }
   Serial.println(F(""));
   Serial.println(F("Connected!"));
