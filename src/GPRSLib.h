@@ -116,6 +116,7 @@ public:
     bool gprsIsRegistered();
     bool gprsIsConnected();
     bool gprsInit();
+    uint8_t gprsSimStatus();
     void gprsDebug();
     bool smsInit();
     void smsRead();
