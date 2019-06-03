@@ -457,7 +457,7 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t buffer
 	timerStart = millis();
 	char c;
 
-	_clearBuffer(buffer, bufferSize);
+	// _clearBuffer(buffer, bufferSize);
 
 	while (1)
 	{
@@ -545,8 +545,8 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 	bool cr = false, lf = false;
 	char c;
 
-	if (startIndex > 0)
-		_clearBuffer(buffer, bufferSize);
+	// if (startIndex > 0)
+	// 	_clearBuffer(buffer, bufferSize);
 
 	while (1)
 	{

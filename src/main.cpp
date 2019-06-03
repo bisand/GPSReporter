@@ -45,7 +45,7 @@ const char postUrl[] = "https://bogenhuset.no/nodered/ais/blackpearl\0";
 const char postContentType[] = "application/json\0";
 
 static Config config;
-static char gprsBuffer[200];
+static char gprsBuffer[128];
 static StaticJsonDocument<256> jsonDoc;
 static GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
 static GPSLib gpsLib;
