@@ -46,6 +46,7 @@ const char postContentType[] = "application/json\0";
 
 static Config config;
 static char gprsBuffer[128];
+static char tmpBuffer[32];
 static StaticJsonDocument<256> jsonDoc;
 static GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
 static GPSLib gpsLib;
@@ -186,9 +187,7 @@ void sendJsonData(JsonDocument *data)
   gprs.connectBearer("telenor");
   delay(50);
   Serial.print(F("Posting data: "));
-  char *httpResult = new char[32];
-  Serial.println(gprs.httpPostJson(postUrl, data, postContentType, false, httpResult, sizeof(httpResult)));
-  delete httpResult;
+  Serial.println(gprs.httpPostJson(postUrl, data, postContentType, false, tmpBuffer, sizeof(tmpBuffer)));
   delay(50);
   gprs.gprsCloseConn();
 }
