@@ -3,10 +3,12 @@
 #include "GPRSLib.h"
 #include "EEPROM.h"
 #include "ArduinoUniqueID.h"
+#include "ArduinoJson.h"
 
 #define RX 8
 #define TX 9
 #define RESET 2
+
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD 19200
@@ -16,7 +18,7 @@
 unsigned long lastMillis = 0;
 unsigned long interval = 15000;
 unsigned long smsLastMillis = 0;
-unsigned long smsInterval = 10000;
+unsigned long smsInterval = 30000;
 unsigned long gpsLastMillis = 0;
 unsigned long gpsInterval = 50;
 bool usbReady = true;
@@ -27,6 +29,9 @@ bool usbReady = true;
 #define CFG_SHIPNAME_LEN 20
 #define CFG_CALLSIGN_LEN 10
 
+/*****************************************************
+ * Global declarations
+ *****************************************************/
 struct Config
 {
   char ok[CFG_OK_LEN];
@@ -35,16 +40,20 @@ struct Config
   char shipname[CFG_SHIPNAME_LEN] = "Black Pearl";
   char callsign[CFG_CALLSIGN_LEN] = "LI5239";
 };
-Config config;
 
 const char postUrl[] = "https://bogenhuset.no/nodered/ais/blackpearl\0";
 const char postContentType[] = "application/json\0";
 
-//GSMSim gsm(RX, TX);
-GPRSLib gprs;
-GPSLib gpsLib;
-DHT dht(DHTPIN, DHTTYPE);
+static Config config;
+static char gprsBuffer[200];
+static StaticJsonDocument<256> jsonDoc;
+static GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
+static GPSLib gpsLib;
+static DHT dht(DHTPIN, DHTTYPE);
 
+/*****************************************************
+ * Free memory function
+ *****************************************************/
 #ifdef __arm__
 // should use uinstd.h to define sbrk but Due causes a conflict
 extern "C" char *sbrk(int incr);
@@ -63,7 +72,6 @@ int freeMemory()
   return __brkval ? &top - __brkval : &top - __malloc_heap_start;
 #endif // __arm__
 }
-
 
 /*****************************************************
  * Get unique device ID
@@ -94,9 +102,8 @@ void clearConfig()
 void initConfig()
 {
   EEPROM.begin();
-  Config *cfg = new Config();
-  EEPROM.get(0, cfg);
-  if (strcmp(cfg->ok, "OK") != 0)
+  EEPROM.get(0, config);
+  if (strcmp(config.ok, "OK") != 0)
   {
     EEPROM.put(0, config);
   }
@@ -104,7 +111,6 @@ void initConfig()
   {
     EEPROM.get(0, config);
   }
-  delete cfg;
 }
 
 /*****************************************************
@@ -175,14 +181,14 @@ void smsReceived(const char *tel, char *msg)
 /*****************************************************
  * Send data
  *****************************************************/
-void sendData(const char *data)
+void sendJsonData(JsonDocument *data)
 {
-  char httpResult[32];
-
   gprs.connectBearer("telenor");
   delay(50);
   Serial.print(F("Posting data: "));
-  Serial.println(gprs.httpPost(postUrl, data, postContentType, false, httpResult, sizeof(httpResult)));
+  char *httpResult = new char[32];
+  Serial.println(gprs.httpPostJson(postUrl, data, postContentType, false, httpResult, sizeof(httpResult)));
+  delete httpResult;
   delay(50);
   gprs.gprsCloseConn();
 }
@@ -209,23 +215,25 @@ void setup()
 
   gprs.setup(BAUD, Serial, DEBUG);
   delay(5000);
+  Serial.print(F("."));
 
   // Init SMS.
   gprs.setSmsCallback(smsReceived);
   gprs.smsInit();
+  Serial.print(F("."));
 
   // Init GPRS.
   gprs.gprsInit();
 
   delay(1000);
 
-  while (!gprs.gprsIsConnected())
-  {
-    Serial.print(F("."));
-    gprs.connectBearer("telenor");
-    delay(1000);
-  }
-  Serial.println(F(""));
+  // while (!gprs.gprsIsConnected())
+  // {
+  //   Serial.print(F("."));
+  //   gprs.connectBearer("telenor");
+  //   delay(1000);
+  // }
+  Serial.println(F("."));
   Serial.println(F("Connected!"));
 
   // Init GPS.
@@ -240,10 +248,6 @@ void setup()
  * LOOP
  * 
  *****************************************************/
-const uint8_t js = 255;
-char json[js];
-char tmpBuf[16];
-
 void loop()
 {
   if (GSM_DEBUG)
@@ -259,61 +263,31 @@ void loop()
   }
   else if (millis() > smsLastMillis + smsInterval)
   {
-    // Serial.println(F("Checking SMS"));
-    // gprs.smsRead();
+    Serial.println(F("Checking SMS"));
+    gprs.smsRead();
     smsLastMillis = millis();
   }
   else if (millis() > lastMillis + interval)
   {
-    Serial.println(F("Publishing result..."));
-    // Obtain values
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    float heatIndex = dht.computeHeatIndex(temperature, humidity, false);
-    int qos = gprs.signalQuality();
-    unsigned long uptime = millis();
-    float latitude = gpsLib.fix.latitude();
-    float longitude = gpsLib.fix.longitude();
-    float speed = gpsLib.fix.speed();
-    float heading = gpsLib.fix.heading();
+    Serial.println("Creating json string...");
+    jsonDoc[F("mmsi")] = config.mmsi;
+    jsonDoc[F("cs")] = config.callsign;;
+    jsonDoc[F("sn")] = config.shipname;
+    jsonDoc[F("tmp")] = dht.readTemperature();
+    jsonDoc[F("hum")] = dht.readHumidity();
+    jsonDoc[F("hix")] = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false);
+    jsonDoc[F("lat")] = gpsLib.fix.latitude();
+    jsonDoc[F("lon")] = gpsLib.fix.longitude();
+    jsonDoc[F("hdg")] = gpsLib.fix.heading();
+    jsonDoc[F("sog")] = gpsLib.fix.speed();
+    jsonDoc[F("qos")] = gprs.signalQuality();
+    jsonDoc[F("mem")] = freeMemory();
+    jsonDoc[F("upt")] = millis();
+    Serial.println("json string created.");
 
-    for (size_t i = 0; i < js; i++)
-    {
-      json[i] = '\0';
-    }
-
-    // Create Json string.
-    strncat_P(json, PSTR("{"), js - strlen(json) - 1);
-    strncat_P(json, PSTR("\"mmsi\":\""), js - strlen(json) - 1);
-    strncat(json, config.mmsi, js - strlen(json) - 1); // MMSI
-    strncat_P(json, PSTR("\",\"cs\":\""), js - strlen(json) - 1);
-    strncat(json, config.callsign, js - strlen(json) - 1); // Call sign
-    strncat_P(json, PSTR("\",\"sn\":\""), js - strlen(json) - 1);
-    strncat(json, config.shipname, js - strlen(json) - 1); // Temperature
-    strncat_P(json, PSTR("\",\"tmp\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(temperature, 7, 2, tmpBuf), js - strlen(json) - 1); // Temperature
-    strncat_P(json, PSTR(",\"hum\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(humidity, 7, 2, tmpBuf), js - strlen(json) - 1); // Humidity
-    strncat_P(json, PSTR(",\"hix\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(heatIndex, 7, 2, tmpBuf), js - strlen(json) - 1); // Heat index
-    strncat_P(json, PSTR(",\"lat\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(latitude, 10, 6, tmpBuf), js - strlen(json) - 1); // Latitude
-    strncat_P(json, PSTR(",\"lon\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(longitude, 10, 6, tmpBuf), js - strlen(json) - 1); // Longitude
-    strncat_P(json, PSTR(",\"hdg\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(heading, 7, 2, tmpBuf), js - strlen(json) - 1); // Heading
-    strncat_P(json, PSTR(",\"sog\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(speed, 7, 2, tmpBuf), js - strlen(json) - 1); // Speed over ground
-    strncat_P(json, PSTR(",\"qos\":"), js - strlen(json) - 1);
-    strncat(json, dtostrf(qos, 7, 2, tmpBuf), js - strlen(json) - 1); // GPRS signal quality
-    strncat_P(json, PSTR(",\"mem\":"), js - strlen(json) - 1);
-    strncat(json, utoa(freeMemory(), tmpBuf, 10), js - strlen(json) - 1); // Free memory
-    strncat_P(json, PSTR(",\"upt\":"), js - strlen(json) - 1);
-    strncat(json, ultoa(uptime, tmpBuf, 10), js - strlen(json) - 1); // Uptime
-    strncat_P(json, PSTR("}"), js - strlen(json) - 1);
-
-    Serial.println(json);
-    sendData(json);
+    serializeJson(jsonDoc, Serial);
+    Serial.println("");
+    sendJsonData(&jsonDoc);
 
     lastMillis = millis();
     Serial.println(F("Done!"));

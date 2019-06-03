@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <AltSoftSerial.h>
+#include <ArduinoJson.h>
 
 #define BUFFER_RESERVE_MEMORY 128
 #define TIME_OUT_READ_SERIAL 5000
@@ -77,7 +78,9 @@ private:
     AltSoftSerial *_serial1;
     bool _debug;
     Stream *_debugger;
-    char _buffer[BUFFER_RESERVE_MEMORY];
+    char *_buffer;
+    char _tmpBuf[32];
+    uint16_t _bufferSize;
 
     void _clearBuffer(char *buffer, uint32_t size);
     int _readSerialUntilCrLf(char *buffer, uint32_t bufferSize);
@@ -101,7 +104,7 @@ public:
     bool LED_FLAG;
     uint32_t BAUDRATE;
 
-    GPRSLib(/* args */);
+    GPRSLib(char *buffer, uint16_t bufferSize);
     ~GPRSLib();
 
     void resetAll();
@@ -119,6 +122,6 @@ public:
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);
     uint8_t signalQuality();
-    Result httpPost(const char *url, const char *data, const char *contentType, bool read, char *output, unsigned int outputSize);
+    Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, unsigned int outputSize);
     bool getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
 };

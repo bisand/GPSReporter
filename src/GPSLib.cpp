@@ -2,7 +2,7 @@
 #include <NMEAGPS.h>
 #include <GPSport.h>
 
-GPSLib::GPSLib(/* args */)
+GPSLib::GPSLib()
 {
     _gps = new NMEAGPS(); // This parses the GPS characters
 }
@@ -10,14 +10,6 @@ GPSLib::GPSLib(/* args */)
 GPSLib::~GPSLib()
 {
     delete _gps;
-}
-
-void GPSLib::_clearBuffer()
-{
-    for (size_t i = 0; i < sizeof(_buffer); i++)
-    {
-        _buffer[i] = '\0';
-    }
 }
 
 void GPSLib::setup(uint32_t baud, Stream &debugger, bool debug)
