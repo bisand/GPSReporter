@@ -265,7 +265,7 @@ void loop()
   }
   else if (millis() > lastMillis + interval)
   {
-    Serial.println("Creating json string...");
+    Serial.println(F("Creating json string..."));
     jsonDoc[F("mmsi")] = config.mmsi;
     jsonDoc[F("cs")] = config.callsign;;
     jsonDoc[F("sn")] = config.shipname;
@@ -279,10 +279,10 @@ void loop()
     jsonDoc[F("qos")] = gprs.signalQuality();
     jsonDoc[F("mem")] = freeMemory();
     jsonDoc[F("upt")] = millis();
-    Serial.println("json string created.");
+    Serial.println(F("json string created."));
 
     serializeJson(jsonDoc, Serial);
-    Serial.println("");
+    Serial.println(F(""));
     sendJsonData(&jsonDoc);
 
     lastMillis = millis();
