@@ -223,12 +223,12 @@ void setup()
 
   delay(500);
 
-  // while (!gprs.gprsIsConnected())
-  // {
-  //   Serial.print(F("."));
-  //   gprs.connectBearer("telenor");
-  //   delay(1000);
-  // }
+  while (!gprs.gprsIsConnected())
+  {
+    Serial.print(F("."));
+    gprs.connectBearer("telenor");
+    delay(1000);
+  }
   Serial.println(F("."));
   Serial.println(F("Connected!"));
 

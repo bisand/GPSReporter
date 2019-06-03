@@ -36,6 +36,8 @@ void GPRSLib::setup(uint32_t baud, Stream &debugger, bool debug)
 
 bool GPRSLib::gprsInit()
 {
+	// See code from here to get some examples:
+	// https://github.com/Seeed-Studio/Seeeduino_GPRS
 	bool result = false;
 	_writeSerial(F("AT\r"));
 	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
@@ -158,6 +160,19 @@ void GPRSLib::smsRead()
 			_debugger->println(msgIdx);
 		}
 	}
+}
+
+bool GPRSLib::gprsIsRegistered()
+{
+	bool result = false;
+	_writeSerial(F("AT+SAPBR=2,1\r"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+
+	_getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
+	if (res == FOUND_EITHER_TEXT && atoi(_tmpBuf) == 1)
+		result = true;
+
+	return result;
 }
 
 bool GPRSLib::gprsIsConnected()
