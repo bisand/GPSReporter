@@ -103,15 +103,10 @@ void clearConfig()
 void initConfig()
 {
   EEPROM.begin();
-  EEPROM.get(0, config);
-  if (strcmp(config.ok, "OK") != 0)
-  {
-    EEPROM.put(0, config);
-  }
-  else
-  {
+  if (EEPROM.read(0) == 'O' && EEPROM.read(1) == 'K')
     EEPROM.get(0, config);
-  }
+  else
+    EEPROM.put(0, config);
 }
 
 /*****************************************************
@@ -213,18 +208,20 @@ void setup()
   }
 
   gprs.setup(BAUD, Serial, DEBUG);
-  delay(5000);
-  Serial.print(F("."));
-
-  // Init SMS.
   gprs.setSmsCallback(smsReceived);
-  gprs.smsInit();
-  Serial.print(F("."));
+  delay(5000);
 
   // Init GPRS.
   gprs.gprsInit();
+  Serial.print(F("."));
 
-  delay(1000);
+  delay(500);
+
+  // Init SMS.
+  gprs.smsInit();
+  Serial.print(F("."));
+
+  delay(500);
 
   // while (!gprs.gprsIsConnected())
   // {
