@@ -320,11 +320,20 @@ void loop()
   else if (millis() > lastMillis + interval)
   {
     loadConfig();
+    Serial.print(F("MMSI: "));
     Serial.println(config.mmsi);
-    Serial.println(F("Creating json string..."));
-    jsonDoc["mmsi"].set(config.mmsi);
-    jsonDoc["cs"].set(config.callsign);
-    jsonDoc["sn"].set(config.shipname);
+    Serial.print(F("Callsign: "));
+    Serial.println(config.callsign);
+    Serial.print(F("Ship name: "));
+    Serial.println(config.shipname);
+
+    // Generate JSON document. 
+    Serial.print(F("Setting MMSI: "));
+    Serial.println(jsonDoc["mmsi"].set(config.mmsi));
+    Serial.print(F("Setting Callsign: "));
+    Serial.println(jsonDoc["cs"].set(config.callsign));
+    Serial.print(F("Setting Ship name: "));
+    Serial.println(jsonDoc["sn"].set(config.shipname));
     jsonDoc["tmp"].set(dht.readTemperature());
     jsonDoc["hum"].set(dht.readHumidity());
     jsonDoc["hix"].set(dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false));
@@ -335,11 +344,11 @@ void loop()
     jsonDoc["qos"].set(gprs.signalQuality());
     jsonDoc["mem"].set(freeMemory());
     jsonDoc["upt"].set(millis());
-    Serial.println(F("json string created."));
 
     // serializeJson(jsonDoc, Serial);
     // Serial.println(F(""));
     sendJsonData(&jsonDoc);
+    jsonDoc.clear();
 
     lastMillis = millis();
     Serial.println(F("Done!"));
