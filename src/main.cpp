@@ -23,34 +23,28 @@ unsigned long gpsLastMillis = 0;
 unsigned long gpsInterval = 50;
 bool usbReady = true;
 
-#define CFG_OK_LEN 2
-#define CFG_OWNER_LEN 16
-#define CFG_MMSI_LEN 16
-#define CFG_SHIPNAME_LEN 20
-#define CFG_CALLSIGN_LEN 10
-
 /*****************************************************
  * Global declarations
  *****************************************************/
 struct Config
 {
-  char ok[CFG_OK_LEN];
-  char owner[CFG_OWNER_LEN];
-  char mmsi[CFG_MMSI_LEN] = "258117280";
-  char shipname[CFG_SHIPNAME_LEN] = "Black Pearl";
-  char callsign[CFG_CALLSIGN_LEN] = "LI5239";
+  char owner[16];
+  char mmsi[16];
+  char shipname[20];
+  char callsign[10];
+  uint32_t checksum;
 };
 
 const char postUrl[] = "https://bogenhuset.no/nodered/ais/blackpearl\0";
 const char postContentType[] = "application/json\0";
 
-static Config config;
-static char gprsBuffer[128];
-static char tmpBuffer[32];
-static StaticJsonDocument<256> jsonDoc;
-static GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
-static GPSLib gpsLib;
-static DHT dht(DHTPIN, DHTTYPE);
+char gprsBuffer[128];
+char tmpBuffer[32];
+StaticJsonDocument<256> jsonDoc;
+GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
+GPSLib gpsLib;
+DHT dht(DHTPIN, DHTTYPE);
+Config config;
 
 /*****************************************************
  * Free memory function
@@ -88,25 +82,76 @@ void getUniqueId(char *id, uint8_t size)
   }
 }
 
-/*****************************************************
- * Clear config
- *****************************************************/
-void clearConfig()
+/* defaultConfig() is used when the config read from the EEPROM fails */
+/* the integrity check (which usually happens after a change to the */
+/* struct, or an EEPROM read failure) */
+void defaultConfig()
 {
-  for (uint16_t i = 0; i < EEPROM.length(); i++)
-    EEPROM.update(i, 0);
+  // config.mmsi[CFG_MMSI_LEN] = "258117280";
+  // config.shipname[CFG_SHIPNAME_LEN] = "Black Pearl";
+  // config.callsign[CFG_CALLSIGN_LEN] = "LI5239";
+  memset(config.callsign, '\0', 10);
+  memset(config.mmsi, '\0', 16);
+  memset(config.owner, '\0', 16);
+  memset(config.shipname, '\0', 20);
 }
 
-/*****************************************************
- * Init config
- *****************************************************/
-void initConfig()
+/* loadConfig() populates the settings variable, so call this before */
+/* attempting to use settings. If the EEPROM read fails, then */
+/* the defaultConfig() function will be called, so settings are always */
+/* populated, one way or another. */
+void loadConfig()
 {
-  EEPROM.begin();
-  if (EEPROM.read(0) == 'O' && EEPROM.read(1) == 'K')
-    EEPROM.get(0, config);
-  else
-    EEPROM.put(0, config);
+  config.checksum = 0;
+  unsigned int sum = 0;
+  unsigned char t;
+  for (unsigned int i = 0; i < sizeof(config); i++)
+  {
+    t = (unsigned char)EEPROM.read(i);
+    *((char *)&config + i) = t;
+    if (i < sizeof(config) - sizeof(config.checksum))
+    {
+      /* Don't checksum the checksum! */
+      sum = sum + t;
+    }
+  }
+  /* Now check the data we just read */
+  if (config.checksum != sum)
+  {
+#ifdef DEBUG
+    Serial.print("Saved config invalid - using defaults ");
+    Serial.print(config.checksum);
+    Serial.print(" <> ");
+    Serial.println(sum);
+#endif
+    defaultConfig();
+  }
+}
+
+/* saveConfig() writes to an EEPROM (or flash on an ESP board). */
+/* Call this after making any changes to the setting variable */
+/* The checksum will be calculated as the data is written */
+void saveConfig()
+{
+  unsigned int sum = 0;
+  unsigned char t;
+  for (unsigned int i = 0; i < sizeof(Config); i++)
+  {
+    if (i == sizeof(config) - sizeof(config.checksum))
+    {
+      config.checksum = sum;
+    }
+    t = *((unsigned char *)&config + i);
+    if (i < sizeof(config) - sizeof(config.checksum))
+    {
+      /* Don't checksum the checksum! */
+      sum = sum + t;
+    }
+    EEPROM.update(i, t);
+  }
+#if defined(ESP8266)
+  EEPROM.commit();
+#endif
 }
 
 /*****************************************************
@@ -121,7 +166,13 @@ void smsReceived(const char *tel, char *msg)
   Serial.print(msg);
   Serial.println(F("\""));
 
-  EEPROM.get(0, config);
+  // char uniqueId[8];
+  // getUniqueId(uniqueId, 8);
+  // Config *config = new Config();
+  // if (strstr(msg, uniqueId) != NULL)
+  //   defaultConfig();
+  // else
+  loadConfig();
   if (strlen(config.owner) < 1)
   {
     strcpy(config.owner, tel);
@@ -150,19 +201,19 @@ void smsReceived(const char *tel, char *msg)
   }
   else if (strcasestr_P(msg, PSTR("mmsi")) != NULL)
   {
-    gprs.getValue(msg, "mmsi", 1, config.mmsi, CFG_MMSI_LEN);
+    gprs.getValue(msg, "mmsi", 1, config.mmsi, 16);
     Serial.print(F("MMSI: "));
     Serial.println(config.mmsi);
   }
   else if (strcasestr_P(msg, PSTR("callsign")) != NULL)
   {
-    gprs.getValue(msg, "callsign", 1, config.callsign, CFG_CALLSIGN_LEN);
+    gprs.getValue(msg, "callsign", 1, config.callsign, 10);
     Serial.print(F("Callsign: "));
     Serial.println(config.callsign);
   }
   else if (strcasestr_P(msg, PSTR("shipname")) != NULL)
   {
-    gprs.getValue(msg, "shipname", 1, config.shipname, CFG_SHIPNAME_LEN);
+    gprs.getValue(msg, "shipname", 1, config.shipname, 20);
     Serial.print(F("Ship name: "));
     Serial.println(config.shipname);
   }
@@ -171,7 +222,7 @@ void smsReceived(const char *tel, char *msg)
     Serial.print(F("Unknown SMS: "));
     Serial.println(msg);
   }
-  EEPROM.put(0, config);
+  saveConfig();
 }
 
 /*****************************************************
@@ -198,8 +249,6 @@ void setup()
 
   Serial.println(F(""));
   Serial.print(F("Starting..."));
-
-  initConfig();
 
   if (GSM_DEBUG)
   {
@@ -231,6 +280,11 @@ void setup()
   }
   Serial.println(F("."));
   Serial.println(F("Connected!"));
+  // char uniqueId[16];
+  // getUniqueId(uniqueId, 16);
+  // Serial.print(F("Unique ID: "));
+  // Serial.println(uniqueId);
+
 
   // Init GPS.
   gpsLib.setup(9600, Serial, DEBUG);
@@ -265,9 +319,11 @@ void loop()
   }
   else if (millis() > lastMillis + interval)
   {
+    loadConfig();
+    Serial.println(config.mmsi);
     Serial.println(F("Creating json string..."));
     jsonDoc[F("mmsi")] = config.mmsi;
-    jsonDoc[F("cs")] = config.callsign;;
+    jsonDoc[F("cs")] = config.callsign;
     jsonDoc[F("sn")] = config.shipname;
     jsonDoc[F("tmp")] = dht.readTemperature();
     jsonDoc[F("hum")] = dht.readHumidity();
@@ -281,8 +337,8 @@ void loop()
     jsonDoc[F("upt")] = millis();
     Serial.println(F("json string created."));
 
-    serializeJson(jsonDoc, Serial);
-    Serial.println(F(""));
+    // serializeJson(jsonDoc, Serial);
+    // Serial.println(F(""));
     sendJsonData(&jsonDoc);
 
     lastMillis = millis();

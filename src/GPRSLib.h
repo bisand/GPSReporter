@@ -95,6 +95,7 @@ private:
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
+    void _removeChar(char *buffer, char chr);
     void (*_smsCallback)(const char* tel, char* msg);
 public:
     // uint8_t RX_PIN;

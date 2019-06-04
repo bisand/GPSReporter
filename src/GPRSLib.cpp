@@ -150,6 +150,13 @@ void GPRSLib::smsRead()
 		}
 		else if (newMsg && strstr(_buffer, "OK\r\n") == NULL)
 		{
+			Serial.println("** SMS **");
+			Serial.print("Before trim: ");
+			Serial.println(_buffer);
+			Serial.print("After trim: ");
+			Serial.println(_buffer);
+			_removeChar(_buffer, '\n');
+			_removeChar(_buffer, '\r');
 			if (_smsCallback != NULL && strlen(_buffer) > 1)
 				_smsCallback(_tmpBuf, _buffer);
 		}
@@ -672,6 +679,24 @@ void GPRSLib::_trimChar(char *buffer, char chr)
 	}
 
 	strncpy(buffer, &tmpBuf[start], len);
+	free(tmpBuf);
+}
+
+void GPRSLib::_removeChar(char *buffer, char chr)
+{
+	uint32_t len = strlen(buffer);
+	uint32_t pos = 0;
+	char *tmpBuf = strdup(buffer);
+	_clearBuffer(buffer, len);
+
+	for (size_t i = 0; i < len; i++)
+	{
+		if (tmpBuf[i] != chr)
+		{
+			buffer[pos++] = tmpBuf[i];
+		}
+	}
+
 	free(tmpBuf);
 }
 
