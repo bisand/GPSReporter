@@ -114,6 +114,7 @@ public:
     void setup(uint32_t baud, Stream &debugger, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
+    bool gprsGetImei(char *buffer, uint8_t bufferSize);
     bool gprsIsRegistered();
     bool gprsIsConnected();
     bool gprsInit();

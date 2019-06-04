@@ -2,7 +2,6 @@
 #include "GPSLib.h"
 #include "GPRSLib.h"
 #include "EEPROM.h"
-#include "ArduinoUniqueID.h"
 #include "ArduinoJson.h"
 
 #define RX 8
@@ -22,6 +21,7 @@ unsigned long smsInterval = 30000;
 unsigned long gpsLastMillis = 0;
 unsigned long gpsInterval = 50;
 bool usbReady = true;
+bool resetAll = false;
 
 /*****************************************************
  * Global declarations
@@ -40,47 +40,12 @@ const char postContentType[] = "application/json\0";
 
 char gprsBuffer[128];
 char tmpBuffer[32];
+char imei[16];
 StaticJsonDocument<256> jsonDoc;
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
 GPSLib gpsLib;
 DHT dht(DHTPIN, DHTTYPE);
 Config config;
-
-/*****************************************************
- * Free memory function
- *****************************************************/
-#ifdef __arm__
-// should use uinstd.h to define sbrk but Due causes a conflict
-extern "C" char *sbrk(int incr);
-#else  // __ARM__
-extern char *__brkval;
-#endif // __arm__
-
-int freeMemory()
-{
-  char top;
-#ifdef __arm__
-  return &top - reinterpret_cast<char *>(sbrk(0));
-#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
-  return &top - __brkval;
-#else  // __arm__
-  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
-#endif // __arm__
-}
-
-/*****************************************************
- * Get unique device ID
- *****************************************************/
-void getUniqueId(char *id, uint8_t size)
-{
-  memset(id, '\0', size);
-  for (size_t i = 0; i < 8; i++)
-  {
-    char num[2];
-    itoa(UniqueID8[i], num, 16);
-    strcat(id, num);
-  }
-}
 
 /* defaultConfig() is used when the config read from the EEPROM fails */
 /* the integrity check (which usually happens after a change to the */
@@ -166,17 +131,34 @@ void smsReceived(const char *tel, char *msg)
   Serial.print(msg);
   Serial.println(F("\""));
 
-  // char uniqueId[8];
-  // getUniqueId(uniqueId, 8);
-  // Config *config = new Config();
-  // if (strstr(msg, uniqueId) != NULL)
-  //   defaultConfig();
-  // else
   loadConfig();
   if (strlen(config.owner) < 1)
   {
     strcpy(config.owner, tel);
   }
+
+  if (strcasestr(msg, "reset") != NULL)
+  {
+    char tmp[16];
+    gprs.getValue(msg, "reset", 1, tmp, 16);
+    if (strcmp(imei, tmp) != 0)
+    {
+      Serial.print(F("IMEI \""));
+      Serial.print(tmp);
+      Serial.println(F("\" is not authenticated."));
+      Serial.print(F("Expected: \""));
+      Serial.print(imei);
+      Serial.println(F("\""));
+      return;
+    }
+    Serial.println(F("Reset ALL"));
+    defaultConfig();
+    strcpy(config.owner, tel);
+    saveConfig();
+    delay(1000);
+    resetAll = true;
+  }
+
   if (strcmp(config.owner, tel) != 0)
   {
     Serial.print(F("User \""));
@@ -184,34 +166,28 @@ void smsReceived(const char *tel, char *msg)
     Serial.println(F("\" is not authenticated."));
     Serial.print(F("Expected: \""));
     Serial.print(config.owner);
-    Serial.print(F("\""));
+    Serial.println(F("\""));
     return;
   }
-  if (strcasestr_P(msg, PSTR("resetgsm")) != NULL)
+  if (strcasestr(msg, "resetgsm") != NULL)
   {
     Serial.println(F("Reset GSM"));
     delay(1000);
     gprs.resetGsm();
   }
-  else if (strcasestr_P(msg, PSTR("reset")) != NULL)
-  {
-    Serial.println(F("Reset ALL"));
-    delay(1000);
-    gprs.resetGsm();
-  }
-  else if (strcasestr_P(msg, PSTR("mmsi")) != NULL)
+  else if (strcasestr(msg, "mmsi") != NULL)
   {
     gprs.getValue(msg, "mmsi", 1, config.mmsi, 16);
     Serial.print(F("MMSI: "));
     Serial.println(config.mmsi);
   }
-  else if (strcasestr_P(msg, PSTR("callsign")) != NULL)
+  else if (strcasestr(msg, "callsign") != NULL)
   {
     gprs.getValue(msg, "callsign", 1, config.callsign, 10);
     Serial.print(F("Callsign: "));
     Serial.println(config.callsign);
   }
-  else if (strcasestr_P(msg, PSTR("shipname")) != NULL)
+  else if (strcasestr(msg, "shipname") != NULL)
   {
     gprs.getValue(msg, "shipname", 1, config.shipname, 20);
     Serial.print(F("Ship name: "));
@@ -233,7 +209,8 @@ void sendJsonData(JsonDocument *data)
   gprs.connectBearer("telenor");
   delay(50);
   Serial.print(F("Posting data: "));
-  Serial.println(gprs.httpPostJson(postUrl, data, postContentType, false, tmpBuffer, sizeof(tmpBuffer)));
+  Serial.println(gprs.httpPostJson(postUrl, data, postContentType, true, tmpBuffer, sizeof(tmpBuffer)));
+  Serial.println(tmpBuffer);
   delay(50);
   gprs.gprsCloseConn();
 }
@@ -280,11 +257,12 @@ void setup()
   }
   Serial.println(F("."));
   Serial.println(F("Connected!"));
-  // char uniqueId[16];
-  // getUniqueId(uniqueId, 16);
-  // Serial.print(F("Unique ID: "));
-  // Serial.println(uniqueId);
 
+  if (gprs.gprsGetImei(imei, sizeof(imei)))
+  {
+    Serial.print(F("IMEI: "));
+    Serial.println(imei);
+  }
 
   // Init GPS.
   gpsLib.setup(9600, Serial, DEBUG);
@@ -306,6 +284,9 @@ void loop()
     return;
   }
 
+  if (resetAll)
+    gprs.resetAll();
+
   if (millis() > gpsLastMillis + gpsInterval)
   {
     gpsLib.loop();
@@ -326,29 +307,24 @@ void loop()
     Serial.println(config.callsign);
     Serial.print(F("Ship name: "));
     Serial.println(config.shipname);
+    Serial.flush();
 
-    // Generate JSON document. 
-    Serial.print(F("Setting MMSI: "));
-    Serial.println(jsonDoc["mmsi"].set(config.mmsi));
-    Serial.print(F("Setting Callsign: "));
-    Serial.println(jsonDoc["cs"].set(config.callsign));
-    Serial.print(F("Setting Ship name: "));
-    Serial.println(jsonDoc["sn"].set(config.shipname));
-    jsonDoc["tmp"].set(dht.readTemperature());
-    jsonDoc["hum"].set(dht.readHumidity());
-    jsonDoc["hix"].set(dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false));
-    jsonDoc["lat"].set(gpsLib.fix.latitude());
-    jsonDoc["lon"].set(gpsLib.fix.longitude());
-    jsonDoc["hdg"].set(gpsLib.fix.heading());
-    jsonDoc["sog"].set(gpsLib.fix.speed());
-    jsonDoc["qos"].set(gprs.signalQuality());
-    jsonDoc["mem"].set(freeMemory());
-    jsonDoc["upt"].set(millis());
+    // Generate JSON document.
+    JsonObject obj = jsonDoc.to<JsonObject>();
+    obj["mmsi"].set(config.mmsi);
+    obj["cs"].set(config.callsign);
+    obj["sn"].set(config.shipname);
+    obj["tmp"].set(dht.readTemperature());
+    obj["hum"].set(dht.readHumidity());
+    obj["hix"].set(dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false));
+    obj["lat"].set(gpsLib.fix.latitude());
+    obj["lon"].set(gpsLib.fix.longitude());
+    obj["hdg"].set(gpsLib.fix.heading());
+    obj["sog"].set(gpsLib.fix.speed());
+    obj["qos"].set(gprs.signalQuality());
+    obj["upt"].set(millis());
 
-    // serializeJson(jsonDoc, Serial);
-    // Serial.println(F(""));
     sendJsonData(&jsonDoc);
-    jsonDoc.clear();
 
     lastMillis = millis();
     Serial.println(F("Done!"));

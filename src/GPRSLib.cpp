@@ -150,11 +150,6 @@ void GPRSLib::smsRead()
 		}
 		else if (newMsg && strstr(_buffer, "OK\r\n") == NULL)
 		{
-			Serial.println("** SMS **");
-			Serial.print("Before trim: ");
-			Serial.println(_buffer);
-			Serial.print("After trim: ");
-			Serial.println(_buffer);
 			_removeChar(_buffer, '\n');
 			_removeChar(_buffer, '\r');
 			if (_smsCallback != NULL && strlen(_buffer) > 1)
@@ -197,6 +192,21 @@ bool GPRSLib::gprsIsRegistered()
 
 	_getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
 	if (res == FOUND_EITHER_TEXT && atoi(_tmpBuf) == 1)
+		result = true;
+
+	return result;
+}
+
+bool GPRSLib::gprsGetImei(char *buffer, uint8_t bufferSize)
+{
+	bool result = false;
+	_writeSerial(F("AT+GSN\r\n"));
+	delay(100);
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+
+	// strncpy(buffer, _buffer, bufferSize);
+	_getResponseParams(_buffer, "AT+GSN", 1, buffer, bufferSize);
+	if (res == FOUND_EITHER_TEXT)
 		result = true;
 
 	return result;
@@ -400,7 +410,7 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 		_writeSerial(F("AT+HTTPREAD\r\n"));
 		if (_readSerialUntilOkOrError(_buffer, _bufferSize, 10000) == FOUND_EITHER_TEXT)
 		{
-			_getResponseParams(_buffer, "+HTTPREAD:", 1, _tmpBuf, sizeof(_tmpBuf));
+			_getResponseParams(_buffer, "+HTTPREAD:", 2, output, outputSize);
 		}
 	}
 
@@ -622,13 +632,13 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 {
 	_serial1->print(buffer);
-	//_serial1->flushOutput();
 	if (_debug)
 	{
 		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
 		_debugger->println(buffer);
 	}
-	// delay(50);
+	delay(50);
+	_serial1->flush();
 	return strlen_P((const char *)buffer);
 }
 
