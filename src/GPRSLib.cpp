@@ -44,7 +44,7 @@ bool GPRSLib::gprsInit()
 	_writeSerial(F("AT+CFUN=1\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return false;
-	if(gprsSimStatus() != 0)
+	if (gprsSimStatus() != 0)
 		return false;
 	return true;
 }
@@ -135,6 +135,7 @@ void GPRSLib::smsRead()
 	uint8_t msgIds[10];
 	uint8_t msgCount = 0;
 	timerStart = millis();
+
 	_writeSerial(F("AT+CMGL=\"ALL\"\r\n"));
 	do
 	{
@@ -165,7 +166,6 @@ void GPRSLib::smsRead()
 		{
 			break;
 		}
-
 	} while (strstr(_buffer, "OK\r\n") == NULL);
 
 	for (size_t i = 0; i < msgCount; i++)
@@ -464,6 +464,14 @@ void GPRSLib::resetGsm()
 	digitalWrite(RESET_PIN, HIGH);
 }
 
+void GPRSLib::flush()
+{
+	while (_serial1->available() > 0)
+	{
+		_serial1->read();
+	}
+}
+
 //////////////////////////////////////
 //			PRIVATE METHODS			//
 //////////////////////////////////////
@@ -637,22 +645,18 @@ int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
 		_debugger->println(buffer);
 	}
-	delay(50);
-	_serial1->flush();
-	return strlen_P((const char *)buffer);
+	return 0;
 }
 
 int GPRSLib::_writeSerial(const char *buffer)
 {
 	_serial1->print(buffer);
-	//_serial1->flushOutput();
 	if (_debug)
 	{
 		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
 		_debugger->println(buffer);
 	}
-	//delay(50);
-	return strlen_P(buffer);
+	return 0;
 }
 
 void GPRSLib::_extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize)

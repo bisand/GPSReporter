@@ -108,6 +108,7 @@ public:
     GPRSLib(char *buffer, uint16_t bufferSize);
     ~GPRSLib();
 
+    void flush();
     void resetAll();
     void resetGsm();
     void setSmsCallback(void (*smsCallback)(const char* tel, char* msg));

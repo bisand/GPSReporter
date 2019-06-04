@@ -14,12 +14,14 @@
 #define DEBUG false
 #define GSM_DEBUG false
 
-unsigned long lastMillis = 0;
-unsigned long interval = 15000;
-unsigned long smsLastMillis = 0;
-unsigned long smsInterval = 30000;
-unsigned long gpsLastMillis = 0;
-unsigned long gpsInterval = 50;
+uint64_t lastMillis = 0;
+uint64_t interval = 15000;
+uint64_t sensLastMillis = 0;
+uint64_t sensInterval = 5000;
+uint64_t smsLastMillis = 0;
+uint64_t smsInterval = 30000;
+uint64_t gpsLastMillis = 0;
+uint64_t gpsInterval = 50;
 bool usbReady = true;
 bool resetAll = false;
 
@@ -137,10 +139,10 @@ void smsReceived(const char *tel, char *msg)
     strcpy(config.owner, tel);
   }
 
-  if (strcasestr(msg, "reset") != NULL)
+  if (strcasestr(msg, "resetall") != NULL)
   {
     char tmp[16];
-    gprs.getValue(msg, "reset", 1, tmp, 16);
+    gprs.getValue(msg, "resetall", 1, tmp, 16);
     if (strcmp(imei, tmp) != 0)
     {
       Serial.print(F("IMEI \""));
@@ -175,6 +177,12 @@ void smsReceived(const char *tel, char *msg)
     delay(1000);
     gprs.resetGsm();
   }
+  else if (strcasestr(msg, "reset") != NULL)
+  {
+    Serial.println(F("Reset board"));
+    delay(1000);
+    gprs.resetAll();
+  }
   else if (strcasestr(msg, "mmsi") != NULL)
   {
     gprs.getValue(msg, "mmsi", 1, config.mmsi, 16);
@@ -208,11 +216,12 @@ void sendJsonData(JsonDocument *data)
 {
   gprs.connectBearer("telenor");
   delay(50);
-  Serial.print(F("Posting data: "));
-  Serial.println(gprs.httpPostJson(postUrl, data, postContentType, true, tmpBuffer, sizeof(tmpBuffer)));
-  Serial.println(tmpBuffer);
+  Result res = gprs.httpPostJson(postUrl, data, postContentType, true, tmpBuffer, sizeof(tmpBuffer));
   delay(50);
   gprs.gprsCloseConn();
+  delay(50);
+  Serial.println(res);
+  Serial.println(tmpBuffer);
 }
 
 /*****************************************************
@@ -269,6 +278,7 @@ void setup()
 
   // Init Temperature sensor.
   dht.begin();
+  Serial.println(F("Ready!"));
 }
 
 /*****************************************************
@@ -276,6 +286,9 @@ void setup()
  * LOOP
  * 
  *****************************************************/
+uint8_t qos = 99;
+float temp, humi, hidx;
+
 void loop()
 {
   if (GSM_DEBUG)
@@ -292,41 +305,52 @@ void loop()
     gpsLib.loop();
     gpsLastMillis = millis();
   }
+  else if (millis() > sensLastMillis + sensInterval)
+  {
+    qos = gprs.signalQuality();
+    delay(50);
+    temp = dht.readTemperature();
+    humi = dht.readHumidity();
+    hidx = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false);
+    sensLastMillis = millis();
+    Serial.println(F("Sensors Done!"));
+  }
   else if (millis() > smsLastMillis + smsInterval)
   {
-    Serial.println(F("Checking SMS"));
     gprs.smsRead();
     smsLastMillis = millis();
+    Serial.println(F("SMS Done!"));
   }
   else if (millis() > lastMillis + interval)
   {
     loadConfig();
-    Serial.print(F("MMSI: "));
-    Serial.println(config.mmsi);
-    Serial.print(F("Callsign: "));
-    Serial.println(config.callsign);
-    Serial.print(F("Ship name: "));
-    Serial.println(config.shipname);
-    Serial.flush();
+    // Serial.print(F("MMSI: "));
+    // Serial.println(config.mmsi);
+    // Serial.print(F("Callsign: "));
+    // Serial.println(config.callsign);
+    // Serial.print(F("Ship name: "));
+    // Serial.println(config.shipname);
 
     // Generate JSON document.
-    JsonObject obj = jsonDoc.to<JsonObject>();
-    obj["mmsi"].set(config.mmsi);
-    obj["cs"].set(config.callsign);
-    obj["sn"].set(config.shipname);
-    obj["tmp"].set(dht.readTemperature());
-    obj["hum"].set(dht.readHumidity());
-    obj["hix"].set(dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false));
-    obj["lat"].set(gpsLib.fix.latitude());
-    obj["lon"].set(gpsLib.fix.longitude());
-    obj["hdg"].set(gpsLib.fix.heading());
-    obj["sog"].set(gpsLib.fix.speed());
-    obj["qos"].set(gprs.signalQuality());
-    obj["upt"].set(millis());
+    jsonDoc["mmsi"].set(config.mmsi);
+    jsonDoc["cs"].set(config.callsign);
+    jsonDoc["sn"].set(config.shipname);
+    jsonDoc["tmp"].set(temp);
+    jsonDoc["hum"].set(humi);
+    jsonDoc["hix"].set(hidx);
+    jsonDoc["lat"].set(gpsLib.fix.latitude());
+    jsonDoc["lon"].set(gpsLib.fix.longitude());
+    jsonDoc["hdg"].set(gpsLib.fix.heading());
+    jsonDoc["sog"].set(gpsLib.fix.speed());
+    jsonDoc["qos"].set(qos);
+    jsonDoc["upt"].set(millis());
 
     sendJsonData(&jsonDoc);
+    delay(100);
+    jsonDoc.clear();
+    delay(100);
 
     lastMillis = millis();
-    Serial.println(F("Done!"));
+    Serial.println(F("Http Done!"));
   }
 }

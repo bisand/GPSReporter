@@ -16,7 +16,6 @@ void GPSLib::setup(uint32_t baud, Stream &debugger, bool debug)
 {
     _debug = debug;
     _debugger = &debugger;
-    _debugger->println(F("GPSLib started"));
 
     gpsPort.begin(baud);
 }
