@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #ifndef DEBUG_PRINT
