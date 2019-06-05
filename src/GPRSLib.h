@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <AltSoftSerial.h>
 #include <ArduinoJson.h>
+#include "debug.h"
 
 #define BUFFER_RESERVE_MEMORY 128
 #define TIME_OUT_READ_SERIAL 5000
@@ -36,16 +37,6 @@
 #define CONNECTED "+CREG: 0,1"
 #define ROAMING "+CREG: 0,5"
 #define BEARER_OPEN "+SAPBR: 1,1"
-
-#ifdef DEBUG
- #define DEBUG_PRINT(x)     Serial.print (x)
- #define DEBUG_PRINTDEC(x)     Serial.print (x, DEC)
- #define DEBUG_PRINTLN(x)  Serial.println (x)
-#else
- #define DEBUG_PRINT(x)
- #define DEBUG_PRINTDEC(x)
- #define DEBUG_PRINTLN(x) 
-#endif
 
 enum Result {
   SUCCESS = 0,
@@ -87,7 +78,6 @@ private:
     uint32_t _timeout = TIME_OUT_READ_SERIAL;
     AltSoftSerial *_serial1;
     bool _debug;
-    Stream *_debugger;
     char *_buffer;
     char _tmpBuf[32];
     uint16_t _bufferSize;
@@ -122,7 +112,7 @@ public:
     void resetAll();
     void resetGsm();
     void setSmsCallback(void (*smsCallback)(const char* tel, char* msg));
-    void setup(uint32_t baud, Stream &debugger, bool debug = false);
+    void setup(uint32_t baud, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
     bool gprsGetImei(char *buffer, uint8_t bufferSize);

@@ -11,7 +11,7 @@
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD 19200
-#define DEBUG false
+#define FULL_DEBUG false
 #define GSM_DEBUG false
 
 uint64_t lastMillis = 0;
@@ -215,6 +215,8 @@ void sendJsonData(JsonDocument *data)
   gprs.connectBearer("telenor");
   delay(50);
   Result res = gprs.httpPostJson(postUrl, data, postContentType, true, tmpBuffer, sizeof(tmpBuffer));
+  if(res != SUCCESS)
+    DEBUG_PRINTLN(F("HTTP POST failed!"));
   delay(50);
   gprs.gprsCloseConn();
   delay(50);
@@ -236,11 +238,11 @@ void setup()
 
   if (GSM_DEBUG)
   {
-    gprs.setup(BAUD, Serial, DEBUG);
+    gprs.setup(BAUD, FULL_DEBUG);
     return;
   }
 
-  gprs.setup(BAUD, Serial, DEBUG);
+  gprs.setup(BAUD, FULL_DEBUG);
   gprs.setSmsCallback(smsReceived);
   delay(5000);
 
@@ -272,7 +274,7 @@ void setup()
   }
 
   // Init GPS.
-  gpsLib.setup(9600, Serial, DEBUG);
+  gpsLib.setup(9600, FULL_DEBUG);
 
   // Init Temperature sensor.
   dht.begin();

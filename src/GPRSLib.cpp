@@ -1,9 +1,8 @@
-#include <GPRSLib.h>
+#include "GPRSLib.h"
 
 GPRSLib::GPRSLib(char *buffer, uint16_t bufferSize)
 {
 	_serial1 = new AltSoftSerial(8, 9);
-	_debugger = NULL;
 	_buffer = buffer;
 	_bufferSize = bufferSize;
 }
@@ -13,9 +12,8 @@ GPRSLib::~GPRSLib()
 	//delete _serial1;
 }
 
-void GPRSLib::setup(uint32_t baud, Stream &debugger, bool debug)
+void GPRSLib::setup(uint32_t baud, bool debug)
 {
-	_debugger = &debugger;
 	pinMode(RESET_PIN, OUTPUT);
 	digitalWrite(RESET_PIN, HIGH);
 	delay(500);
@@ -75,11 +73,11 @@ void GPRSLib::gprsDebug()
 {
 	if (_serial1->available())
 	{
-		_debugger->write(_serial1->read());
+		Serial.write(_serial1->read());
 	}
-	if (_debugger->available())
+	if (Serial.available())
 	{
-		_serial1->write(_debugger->read());
+		_serial1->write(Serial.read());
 	}
 }
 

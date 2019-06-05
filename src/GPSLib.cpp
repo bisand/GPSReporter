@@ -12,10 +12,9 @@ GPSLib::~GPSLib()
     delete _gps;
 }
 
-void GPSLib::setup(uint32_t baud, Stream &debugger, bool debug)
+void GPSLib::setup(uint32_t baud, bool debug)
 {
     _debug = debug;
-    _debugger = &debugger;
 
     gpsPort.begin(baud);
 }
@@ -31,19 +30,19 @@ void GPSLib::loop()
         if (!_debug)
             return;
 
-        _debugger->print(F("Location: "));
+        DEBUG_PRINT(F("Location: "));
         if (fix.valid.location)
         {
-            _debugger->print(fix.latitude(), 6);
-            _debugger->print(',');
-            _debugger->print(fix.longitude(), 6);
+            DEBUG_PRINTFLOAT(fix.latitude(), 6);
+            DEBUG_PRINT(',');
+            DEBUG_PRINTFLOAT(fix.longitude(), 6);
         }
 
-        _debugger->print(F(", Altitude: "));
+        DEBUG_PRINT(F(", Altitude: "));
         if (fix.valid.altitude)
         {
-            _debugger->print(fix.altitude());
+            DEBUG_PRINT(fix.altitude());
         }
-        _debugger->println();
+        DEBUG_PRINTLN();
     }
 }
