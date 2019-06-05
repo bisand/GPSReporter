@@ -139,4 +139,6 @@ public:
     uint8_t signalQuality();
     Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, unsigned int outputSize);
     bool getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
+    bool getSmsCmd(char *buffer, const char *cmd, char *output, uint16_t outputLength);
+    bool getSmsVal(char *buffer, const char *cmd, char *output, uint16_t outputLength);
 };

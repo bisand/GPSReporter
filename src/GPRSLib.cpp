@@ -420,8 +420,33 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	return SUCCESS;
 }
 
+bool GPRSLib::getSmsCmd(char *buffer, const char *cmd, char *output, uint16_t outputLength)
+{
+	_clearBuffer(output, outputLength);
+
+	char *buf = strstr(buffer, cmd);
+	if (buf == NULL)
+		return false;
+
+	strcpy(output, cmd);
+	return true;
+}
+bool GPRSLib::getSmsVal(char *buffer, const char *cmd, char *output, uint16_t outputLength)
+{
+	_clearBuffer(output, outputLength);
+
+	char *buf = strstr(buffer, cmd);
+	if (buf == NULL)
+		return false;
+	
+	buf = strstr(buffer, " ");
+	strncpy(output, &buf[1], outputLength);
+	return true;
+}
 bool GPRSLib::getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength)
 {
+	_clearBuffer(output, outputLength);
+
 	bool result = false;
 	uint8_t idx = 0;
 	char *buf = strstr(buffer, cmd);
@@ -431,8 +456,6 @@ bool GPRSLib::getValue(char *buffer, const char *cmd, uint8_t paramNum, char *ou
 	}
 	uint8_t cmdLen = strlen(cmd);
 	char *cmdBuf = strdup(&buf[cmdLen]);
-
-	_clearBuffer(output, outputLength);
 
 	char *pch;
 	pch = strtok(cmdBuf, " ");
