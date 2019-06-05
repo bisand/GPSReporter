@@ -85,12 +85,10 @@ void loadConfig()
   /* Now check the data we just read */
   if (config.checksum != sum)
   {
-#ifdef DEBUG
-    Serial.print("Saved config invalid - using defaults ");
-    Serial.print(config.checksum);
-    Serial.print(" <> ");
-    Serial.println(sum);
-#endif
+    DEBUG_PRINT("Saved config invalid - using defaults ");
+    DEBUG_PRINT(config.checksum);
+    DEBUG_PRINT(" <> ");
+    DEBUG_PRINTLN(sum);
     defaultConfig();
   }
 }
@@ -126,12 +124,12 @@ void saveConfig()
  *****************************************************/
 void smsReceived(const char *tel, char *msg)
 {
-  Serial.print(F("Receiving SMS from \""));
-  Serial.print(tel);
-  Serial.println(F("\""));
-  Serial.print(F("With message: \""));
-  Serial.print(msg);
-  Serial.println(F("\""));
+  DEBUG_PRINT(F("Receiving SMS from \""));
+  DEBUG_PRINT(tel);
+  DEBUG_PRINTLN(F("\""));
+  DEBUG_PRINT(F("With message: \""));
+  DEBUG_PRINT(msg);
+  DEBUG_PRINTLN(F("\""));
 
   loadConfig();
   if (strlen(config.owner) < 1)
@@ -145,15 +143,15 @@ void smsReceived(const char *tel, char *msg)
     gprs.getValue(msg, "resetall", 1, tmp, 16);
     if (strcmp(imei, tmp) != 0)
     {
-      Serial.print(F("IMEI \""));
-      Serial.print(tmp);
-      Serial.println(F("\" is not authenticated."));
-      Serial.print(F("Expected: \""));
-      Serial.print(imei);
-      Serial.println(F("\""));
+      DEBUG_PRINT(F("IMEI \""));
+      DEBUG_PRINT(tmp);
+      DEBUG_PRINTLN(F("\" is not authenticated."));
+      DEBUG_PRINT(F("Expected: \""));
+      DEBUG_PRINT(imei);
+      DEBUG_PRINTLN(F("\""));
       return;
     }
-    Serial.println(F("Reset ALL"));
+    DEBUG_PRINTLN(F("Reset ALL"));
     defaultConfig();
     strcpy(config.owner, tel);
     saveConfig();
@@ -163,48 +161,48 @@ void smsReceived(const char *tel, char *msg)
 
   if (strcmp(config.owner, tel) != 0)
   {
-    Serial.print(F("User \""));
-    Serial.print(tel);
-    Serial.println(F("\" is not authenticated."));
-    Serial.print(F("Expected: \""));
-    Serial.print(config.owner);
-    Serial.println(F("\""));
+    DEBUG_PRINT(F("User \""));
+    DEBUG_PRINT(tel);
+    DEBUG_PRINTLN(F("\" is not authenticated."));
+    DEBUG_PRINT(F("Expected: \""));
+    DEBUG_PRINT(config.owner);
+    DEBUG_PRINTLN(F("\""));
     return;
   }
   if (strcasestr(msg, "resetgsm") != NULL)
   {
-    Serial.println(F("Reset GSM"));
+    DEBUG_PRINTLN(F("Reset GSM"));
     delay(1000);
     gprs.resetGsm();
   }
   else if (strcasestr(msg, "reset") != NULL)
   {
-    Serial.println(F("Reset board"));
+    DEBUG_PRINTLN(F("Reset board"));
     delay(1000);
     gprs.resetAll();
   }
   else if (strcasestr(msg, "mmsi") != NULL)
   {
     gprs.getValue(msg, "mmsi", 1, config.mmsi, 16);
-    Serial.print(F("MMSI: "));
-    Serial.println(config.mmsi);
+    DEBUG_PRINT(F("MMSI: "));
+    DEBUG_PRINTLN(config.mmsi);
   }
   else if (strcasestr(msg, "callsign") != NULL)
   {
     gprs.getValue(msg, "callsign", 1, config.callsign, 10);
-    Serial.print(F("Callsign: "));
-    Serial.println(config.callsign);
+    DEBUG_PRINT(F("Callsign: "));
+    DEBUG_PRINTLN(config.callsign);
   }
   else if (strcasestr(msg, "shipname") != NULL)
   {
     gprs.getValue(msg, "shipname", 1, config.shipname, 20);
-    Serial.print(F("Ship name: "));
-    Serial.println(config.shipname);
+    DEBUG_PRINT(F("Ship name: "));
+    DEBUG_PRINTLN(config.shipname);
   }
   else
   {
-    Serial.print(F("Unknown SMS: "));
-    Serial.println(msg);
+    DEBUG_PRINT(F("Unknown SMS: "));
+    DEBUG_PRINTLN(msg);
   }
   saveConfig();
 }
@@ -220,8 +218,8 @@ void sendJsonData(JsonDocument *data)
   delay(50);
   gprs.gprsCloseConn();
   delay(50);
-  Serial.println(res);
-  Serial.println(tmpBuffer);
+  DEBUG_PRINTLN(res);
+  DEBUG_PRINTLN(tmpBuffer);
 }
 
 /*****************************************************
@@ -233,8 +231,8 @@ void setup()
 {
   Serial.begin(BAUD);
 
-  Serial.println(F(""));
-  Serial.print(F("Starting..."));
+  DEBUG_PRINTLN(F(""));
+  DEBUG_PRINT(F("Starting..."));
 
   if (GSM_DEBUG)
   {
@@ -248,29 +246,29 @@ void setup()
 
   // Init GPRS.
   gprs.gprsInit();
-  Serial.print(F("."));
+  DEBUG_PRINT(F("."));
 
   delay(500);
 
   // Init SMS.
   gprs.smsInit();
-  Serial.print(F("."));
+  DEBUG_PRINT(F("."));
 
   delay(500);
 
   while (!gprs.gprsIsConnected())
   {
-    Serial.print(F("."));
+    DEBUG_PRINT(F("."));
     gprs.connectBearer("telenor");
     delay(1000);
   }
-  Serial.println(F("."));
-  Serial.println(F("Connected!"));
+  DEBUG_PRINTLN(F("."));
+  DEBUG_PRINTLN(F("Connected!"));
 
   if (gprs.gprsGetImei(imei, sizeof(imei)))
   {
-    Serial.print(F("IMEI: "));
-    Serial.println(imei);
+    DEBUG_PRINT(F("IMEI: "));
+    DEBUG_PRINTLN(imei);
   }
 
   // Init GPS.
@@ -278,7 +276,7 @@ void setup()
 
   // Init Temperature sensor.
   dht.begin();
-  Serial.println(F("Ready!"));
+  DEBUG_PRINTLN(F("Ready!"));
 }
 
 /*****************************************************
@@ -313,23 +311,23 @@ void loop()
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false);
     sensLastMillis = millis();
-    Serial.println(F("Sensors Done!"));
+    DEBUG_PRINTLN(F("Sensors Done!"));
   }
   else if (millis() > smsLastMillis + smsInterval)
   {
     gprs.smsRead();
     smsLastMillis = millis();
-    Serial.println(F("SMS Done!"));
+    DEBUG_PRINTLN(F("SMS Done!"));
   }
   else if (millis() > lastMillis + interval)
   {
     loadConfig();
-    // Serial.print(F("MMSI: "));
-    // Serial.println(config.mmsi);
-    // Serial.print(F("Callsign: "));
-    // Serial.println(config.callsign);
-    // Serial.print(F("Ship name: "));
-    // Serial.println(config.shipname);
+    DEBUG_PRINT(F("MMSI: "));
+    DEBUG_PRINTLN(config.mmsi);
+    DEBUG_PRINT(F("Callsign: "));
+    DEBUG_PRINTLN(config.callsign);
+    DEBUG_PRINT(F("Ship name: "));
+    DEBUG_PRINTLN(config.shipname);
 
     // Generate JSON document.
     jsonDoc["mmsi"].set(config.mmsi);
@@ -351,6 +349,6 @@ void loop()
     delay(100);
 
     lastMillis = millis();
-    Serial.println(F("Http Done!"));
+    DEBUG_PRINTLN(F("Http Done!"));
   }
 }

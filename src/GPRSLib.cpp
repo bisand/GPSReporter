@@ -178,8 +178,8 @@ void GPRSLib::smsRead()
 		ReadSerialResult r = _readSerialUntilOkOrError(_tmpBuf, sizeof(_tmpBuf));
 		if (r != FOUND_EITHER_TEXT)
 		{
-			_debugger->print(F("Error deleting SMS: "));
-			_debugger->println(msgIdx);
+			DEBUG_PRINT(F("Error deleting SMS: "));
+			DEBUG_PRINTLN(msgIdx);
 		}
 	}
 }
@@ -304,7 +304,7 @@ Result GPRSLib::connectBearer(const char *apn, const char *username, const char 
 
 uint8_t GPRSLib::signalQuality()
 {
-	_writeSerial(F("AT+CSQ\r\n"));
+	_writeSerial(F(SIGNAL_QUALITY));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) == FOUND_EITHER_TEXT)
 	{
 		_getResponseParams(_buffer, "+CSQ:", 1, _tmpBuf, sizeof(_tmpBuf));
@@ -388,22 +388,22 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	// do
 	// {
 	// 	idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
-	// 	_debugger->println(_buffer);
+	// 	DEBUG_PRINTLN(_buffer);
 	// 	delay(50);
-	// 	_debugger->print(F("."));
+	// 	DEBUG_PRINT(F("."));
 	// } while (strstr(_buffer, "+HTTPACTION:") == NULL);
-	// _debugger->println(F(""));
-	// _debugger->println(F("POST buffer: "));
-	// _debugger->println(_buffer);
+	// DEBUG_PRINTLN(F(""));
+	// DEBUG_PRINTLN(F("POST buffer: "));
+	// DEBUG_PRINTLN(_buffer);
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 1, _tmpBuf, sizeof(_tmpBuf));
 	if (atoi(_tmpBuf) != 1)
-		_debugger->print(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
+		DEBUG_PRINT(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 2, _tmpBuf, sizeof(_tmpBuf));
 	int httpResult = atoi(_tmpBuf);
 	if (httpResult < 200 || httpResult >= 300)
-		_debugger->print(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
+		DEBUG_PRINT(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
 
 	if (read)
 	{
@@ -559,19 +559,19 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint32_t buffer
 
 	if (_debug)
 	{
-		_debugger->println(F("[DEBUG] [_readSerialUntilEitherOr]\0"));
+		DEBUG_PRINTLN(F("[DEBUG] [_readSerialUntilEitherOr]\0"));
 		if (result == FOUND_EITHER_TEXT)
 		{
-			_debugger->print(F("Either text: "));
-			_debugger->println(eitherText);
+			DEBUG_PRINT(F("Either text: "));
+			DEBUG_PRINTLN(eitherText);
 		}
 		if (result == FOUND_OR_TEXT)
 		{
-			_debugger->print(F("Or text: "));
-			_debugger->println(orText);
+			DEBUG_PRINT(F("Or text: "));
+			DEBUG_PRINTLN(orText);
 		}
-		_debugger->println(F("Buffer: "));
-		_debugger->println(buffer);
+		DEBUG_PRINTLN(F("Buffer: "));
+		DEBUG_PRINTLN(buffer);
 	}
 
 	return result;
@@ -629,9 +629,9 @@ int GPRSLib::_readSerialUntilCrLf(char *buffer, uint32_t bufferSize, uint32_t st
 
 	if (_debug)
 	{
-		_debugger->println(F("[DEBUG] [_readSerialUntilCrLf]\0"));
-		_debugger->println(F("Buffer: "));
-		_debugger->println(buffer);
+		DEBUG_PRINTLN(F("[DEBUG] [_readSerialUntilCrLf]\0"));
+		DEBUG_PRINTLN(F("Buffer: "));
+		DEBUG_PRINTLN(buffer);
 	}
 
 	return count;
@@ -642,8 +642,8 @@ int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 	_serial1->print(buffer);
 	if (_debug)
 	{
-		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
-		_debugger->println(buffer);
+		DEBUG_PRINT(F("[DEBUG] [_writeSerial] -> \0"));
+		DEBUG_PRINTLN(buffer);
 	}
 	return 0;
 }
@@ -653,8 +653,8 @@ int GPRSLib::_writeSerial(const char *buffer)
 	_serial1->print(buffer);
 	if (_debug)
 	{
-		_debugger->print(F("[DEBUG] [_writeSerial] -> \0"));
-		_debugger->println(buffer);
+		DEBUG_PRINT(F("[DEBUG] [_writeSerial] -> \0"));
+		DEBUG_PRINTLN(buffer);
 	}
 	return 0;
 }
