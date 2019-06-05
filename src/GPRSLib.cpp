@@ -466,9 +466,9 @@ bool GPRSLib::getSmsVal(char *buffer, char *output, uint16_t outputLength)
 
 bool GPRSLib::getValue(char *buffer, char *cmd, char *output, uint16_t outputLength)
 {
-    bool result = false;
+	bool result = false;
 	_clearBuffer(output, outputLength);
-    char *cmdTest = strdup(cmd);
+	char *cmdTest = strdup(cmd);
 	lower(cmdTest);
 	uint16_t len = strlen(cmdTest);
 	char cmdBuf[len + 1];
@@ -480,7 +480,7 @@ bool GPRSLib::getValue(char *buffer, char *cmd, char *output, uint16_t outputLen
 		if (getSmsVal(buffer, output, outputLength))
 			result = true;
 	}
-    free(cmdTest);
+	free(cmdTest);
 	return result;
 }
 
@@ -597,12 +597,18 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferS
 		if (result == FOUND_EITHER_TEXT)
 		{
 			DEBUG_PRINT(F("Either text: "));
-			DEBUG_PRINTLN(eitherText);
+			if (strcmp(eitherText, "\r\n") == 0)
+				DEBUG_PRINTLN(F("<CR><LF>"));
+			else
+				DEBUG_PRINTLN(eitherText);
 		}
 		if (result == FOUND_OR_TEXT)
 		{
 			DEBUG_PRINT(F("Or text: "));
-			DEBUG_PRINTLN(orText);
+			if (strcmp(orText, "\r\n") == 0)
+				DEBUG_PRINTLN(F("<CR><LF>"));
+			else
+				DEBUG_PRINTLN(orText);
 		}
 		DEBUG_PRINTLN(F("Buffer: "));
 		DEBUG_PRINTLN(buffer);
@@ -648,7 +654,7 @@ int GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator
 			buffer[index] = '\0';
 			sum = (c == terminator[sum]) ? sum + 1 : 0;
 			count++;
-			if(sum == len)
+			if (sum == len)
 				break;
 			if (index >= bufferSize - 1)
 				break;
@@ -660,7 +666,11 @@ int GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator
 
 	if (_debug)
 	{
-		DEBUG_PRINTLN(F("[DEBUG] [_readSerialUntilCrLf]\0"));
+		DEBUG_PRINTLN(F("[DEBUG] [_readSerialUntil]\0"));
+		if (strcmp(terminator, "\r\n") == 0)
+			DEBUG_PRINTLN(F("<CR><LF>"));
+		else
+			DEBUG_PRINTLN(terminator);
 		DEBUG_PRINTLN(F("Buffer: "));
 		DEBUG_PRINTLN(buffer);
 	}
