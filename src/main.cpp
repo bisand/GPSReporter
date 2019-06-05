@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "DHT.h"
 #include "GPSLib.h"
 #include "GPRSLib.h"
@@ -40,10 +41,10 @@ struct Config
 const char postUrl[] = "https://bogenhuset.no/nodered/ais/blackpearl\0";
 const char postContentType[] = "application/json\0";
 
-char gprsBuffer[128];
+StaticJsonDocument<200> jsonDoc;
+char gprsBuffer[100];
 char tmpBuffer[32];
 char imei[16];
-StaticJsonDocument<256> jsonDoc;
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
 GPSLib gpsLib;
 DHT dht(DHTPIN, DHTTYPE);
@@ -85,10 +86,10 @@ void loadConfig()
   /* Now check the data we just read */
   if (config.checksum != sum)
   {
-    DEBUG_PRINT("Saved config invalid - using defaults ");
-    DEBUG_PRINT(config.checksum);
-    DEBUG_PRINT(" <> ");
-    DEBUG_PRINTLN(sum);
+    DBG_PRN("Saved config invalid - using defaults ");
+    DBG_PRN(config.checksum);
+    DBG_PRN(" <> ");
+    DBG_PRNLN(sum);
     defaultConfig();
   }
 }
@@ -124,14 +125,14 @@ void saveConfig()
  *****************************************************/
 void smsReceived(const char *tel, char *cmd, char *val)
 {
-  DEBUG_PRINT(F("Receiving SMS from \""));
-  DEBUG_PRINT(tel);
-  DEBUG_PRINTLN(F("\""));
-  DEBUG_PRINT(F("With message: \""));
-  DEBUG_PRINT(cmd);
-  DEBUG_PRINT(F(" "));
-  DEBUG_PRINT(val);
-  DEBUG_PRINTLN(F("\""));
+  DBG_PRN(F("Receiving SMS from \""));
+  DBG_PRN(tel);
+  DBG_PRNLN(F("\""));
+  DBG_PRN(F("With message: \""));
+  DBG_PRN(cmd);
+  DBG_PRN(F(" "));
+  DBG_PRN(val);
+  DBG_PRNLN(F("\""));
 
   loadConfig();
   if (strlen(config.owner) < 1)
@@ -143,15 +144,15 @@ void smsReceived(const char *tel, char *cmd, char *val)
   {
     if (strcmp(imei, val) != 0)
     {
-      DEBUG_PRINT(F("IMEI \""));
-      DEBUG_PRINT(tmp);
-      DEBUG_PRINTLN(F("\" is not authenticated."));
-      DEBUG_PRINT(F("Expected: \""));
-      DEBUG_PRINT(imei);
-      DEBUG_PRINTLN(F("\""));
+      DBG_PRN(F("IMEI \""));
+      DBG_PRN(val);
+      DBG_PRNLN(F("\" is not authenticated."));
+      DBG_PRN(F("Expected: \""));
+      DBG_PRN(imei);
+      DBG_PRNLN(F("\""));
       return;
     }
-    DEBUG_PRINTLN(F("Reset ALL"));
+    DBG_PRNLN(F("Reset ALL"));
     defaultConfig();
     strcpy(config.owner, tel);
     saveConfig();
@@ -161,48 +162,47 @@ void smsReceived(const char *tel, char *cmd, char *val)
 
   if (strcmp(config.owner, tel) != 0)
   {
-    DEBUG_PRINT(F("User \""));
-    DEBUG_PRINT(tel);
-    DEBUG_PRINTLN(F("\" is not authenticated."));
-    DEBUG_PRINT(F("Expected: \""));
-    DEBUG_PRINT(config.owner);
-    DEBUG_PRINTLN(F("\""));
+    DBG_PRN(F("User \""));
+    DBG_PRN(tel);
+    DBG_PRNLN(F("\" is not authenticated."));
+    DBG_PRN(F("Expected: \""));
+    DBG_PRN(config.owner);
+    DBG_PRNLN(F("\""));
     return;
   }
   if (strcmp(cmd, "resetgsm") == 0)
   {
-    DEBUG_PRINTLN(F("Reset GSM"));
+    DBG_PRNLN(F("Reset GSM"));
     delay(1000);
     gprs.resetGsm();
   }
   else if (strcmp(cmd, "reset") == 0)
   {
-    DEBUG_PRINTLN(F("Reset board"));
+    DBG_PRNLN(F("Reset board"));
     delay(1000);
     gprs.resetAll();
   }
   else if (strcmp(cmd, "mmsi") == 0)
   {
     strncpy(config.mmsi, val, sizeof(config.mmsi));
-    DEBUG_PRINT(F("MMSI: "));
-    DEBUG_PRINTLN(config.mmsi);
+    DBG_PRN(F("MMSI: "));
+    DBG_PRNLN(config.mmsi);
   }
   else if (strcmp(cmd, "callsign") == 0)
   {
     strncpy(config.callsign, val, sizeof(config.callsign));
-    DEBUG_PRINT(F("Callsign: "));
-    DEBUG_PRINTLN(config.callsign);
+    DBG_PRN(F("Callsign: "));
+    DBG_PRNLN(config.callsign);
   }
   else if (strcmp(cmd, "shipname") == 0)
   {
     strncpy(config.shipname, val, sizeof(config.shipname));
-    DEBUG_PRINT(F("Ship name: "));
-    DEBUG_PRINTLN(config.shipname);
+    DBG_PRN(F("Ship name: "));
+    DBG_PRNLN(config.shipname);
   }
   else
   {
-    DEBUG_PRINT(F("Unknown SMS: "));
-    DEBUG_PRINTLN(msg);
+    DBG_PRN(F("Unknown SMS"));
   }
   saveConfig();
 }
@@ -216,12 +216,12 @@ void sendJsonData(JsonDocument *data)
   delay(50);
   Result res = gprs.httpPostJson(postUrl, data, postContentType, true, tmpBuffer, sizeof(tmpBuffer));
   if(res != SUCCESS)
-    DEBUG_PRINTLN(F("HTTP POST failed!"));
+    DBG_PRNLN(F("HTTP POST failed!"));
   delay(50);
   gprs.gprsCloseConn();
   delay(50);
-  DEBUG_PRINTLN(res);
-  DEBUG_PRINTLN(tmpBuffer);
+  DBG_PRNLN(res);
+  DBG_PRNLN(tmpBuffer);
 }
 
 /*****************************************************
@@ -233,8 +233,8 @@ void setup()
 {
   Serial.begin(BAUD);
 
-  DEBUG_PRINTLN(F(""));
-  DEBUG_PRINT(F("Starting..."));
+  DBG_PRNLN(F(""));
+  DBG_PRN(F("Starting..."));
 
   if (GSM_DEBUG)
   {
@@ -248,29 +248,29 @@ void setup()
 
   // Init GPRS.
   gprs.gprsInit();
-  DEBUG_PRINT(F("."));
+  DBG_PRN(F("."));
 
   delay(500);
 
   // Init SMS.
   gprs.smsInit();
-  DEBUG_PRINT(F("."));
+  DBG_PRN(F("."));
 
   delay(500);
 
   while (!gprs.gprsIsConnected())
   {
-    DEBUG_PRINT(F("."));
+    DBG_PRN(F("."));
     gprs.connectBearer("telenor");
     delay(1000);
   }
-  DEBUG_PRINTLN(F("."));
-  DEBUG_PRINTLN(F("Connected!"));
+  DBG_PRNLN(F("."));
+  DBG_PRNLN(F("Connected!"));
 
   if (gprs.gprsGetImei(imei, sizeof(imei)))
   {
-    DEBUG_PRINT(F("IMEI: "));
-    DEBUG_PRINTLN(imei);
+    DBG_PRN(F("IMEI: "));
+    DBG_PRNLN(imei);
   }
 
   // Init GPS.
@@ -278,7 +278,7 @@ void setup()
 
   // Init Temperature sensor.
   dht.begin();
-  DEBUG_PRINTLN(F("Ready!"));
+  Serial.println(F("Ready!"));
 }
 
 /*****************************************************
@@ -308,28 +308,28 @@ void loop()
   else if (millis() > sensLastMillis + sensInterval)
   {
     qos = gprs.signalQuality();
-    delay(50);
+    delay(100);
     temp = dht.readTemperature();
     humi = dht.readHumidity();
-    hidx = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false);
+    hidx = dht.computeHeatIndex(temp, humi, false);
     sensLastMillis = millis();
-    DEBUG_PRINTLN(F("Sensors Done!"));
+    DBG_PRNLN(F("Sensors Done!"));
   }
   else if (millis() > smsLastMillis + smsInterval)
   {
     gprs.smsRead();
     smsLastMillis = millis();
-    DEBUG_PRINTLN(F("SMS Done!"));
+    DBG_PRNLN(F("SMS Done!"));
   }
   else if (millis() > lastMillis + interval)
   {
     loadConfig();
-    DEBUG_PRINT(F("MMSI: "));
-    DEBUG_PRINTLN(config.mmsi);
-    DEBUG_PRINT(F("Callsign: "));
-    DEBUG_PRINTLN(config.callsign);
-    DEBUG_PRINT(F("Ship name: "));
-    DEBUG_PRINTLN(config.shipname);
+    DBG_PRN(F("MMSI: "));
+    DBG_PRNLN(config.mmsi);
+    DBG_PRN(F("Callsign: "));
+    DBG_PRNLN(config.callsign);
+    DBG_PRN(F("Ship name: "));
+    DBG_PRNLN(config.shipname);
 
     // Generate JSON document.
     jsonDoc["mmsi"].set(config.mmsi);
@@ -344,13 +344,13 @@ void loop()
     jsonDoc["sog"].set(gpsLib.fix.speed());
     jsonDoc["qos"].set(qos);
     jsonDoc["upt"].set(millis());
-
+    delay(50);
     sendJsonData(&jsonDoc);
-    delay(100);
+    delay(200);
     jsonDoc.clear();
-    delay(100);
+    delay(200);
 
     lastMillis = millis();
-    DEBUG_PRINTLN(F("Http Done!"));
+    DBG_PRNLN(F("Http Done!"));
   }
 }

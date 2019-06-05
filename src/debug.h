@@ -1,29 +1,29 @@
-#define DEBUG
+// #define DBG
 
-#ifdef DEBUG
-#ifndef DEBUG_PRINT
-#define DEBUG_PRINT(x) Serial.print(x)
+#ifdef DBG
+#ifndef DBG_PRN
+#define DBG_PRN(x) Serial.print(x)
 #endif
-#ifndef DEBUG_PRINTFLOAT
-#define DEBUG_PRINTFLOAT(x,y) Serial.print(x,y)
+#ifndef DBG_PRNFL
+#define DBG_PRNFL(x,y) Serial.print(x,y)
 #endif
-#ifndef DEBUG_PRINTDEC
-#define DEBUG_PRINTDEC(x) Serial.print(x,DEC)
+#ifndef DBG_PRNDEC
+#define DBG_PRNDEC(x) Serial.print(x,DEC)
 #endif
-#ifndef DEBUG_PRINTLN
-#define DEBUG_PRINTLN(x) Serial.println(x)
+#ifndef DBG_PRNLN
+#define DBG_PRNLN(x) Serial.println(x)
 #endif
 #else
-#ifndef DEBUG_PRINT
-#define DEBUG_PRINT(x)
+#ifndef DBG_PRN
+#define DBG_PRN(x)
 #endif
-#ifndef DEBUG_PRINTDEC
-#define DEBUG_PRINTDEC(x)
+#ifndef DBG_PRNDEC
+#define DBG_PRNDEC(x)
 #endif
-#ifndef DEBUG_PRINTFLOAT
-#define DEBUG_PRINTFLOAT(x,y)
+#ifndef DBG_PRNFL
+#define DBG_PRNFL(x,y)
 #endif
-#ifndef DEBUG_PRINTLN
-#define DEBUG_PRINTLN(x)
+#ifndef DBG_PRNLN
+#define DBG_PRNLN(x)
 #endif
 #endif

@@ -6,37 +6,37 @@
 #define BUFFER_RESERVE_MEMORY 128
 #define TIME_OUT_READ_SERIAL 5000
 
-#define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r\n"
-#define BEARER_PROFILE_APN "AT+SAPBR=3,1,\"APN\",\"%s\"\r\n"
-#define QUERY_BEARER "AT+SAPBR=2,1\r\n"
-#define OPEN_GPRS_CONTEXT "AT+SAPBR=1,1\r\n"
-#define CLOSE_GPRS_CONTEXT "AT+SAPBR=0,1\r\n"
-#define HTTP_INIT "AT+HTTPINIT\r\n"
-#define HTTP_CID "AT+HTTPPARA=\"CID\",1\r\n"
-#define HTTP_PARA "AT+HTTPPARA=\"URL\",\"%s\"\r\n"
-#define HTTP_GET "AT+HTTPACTION=0\r\n"
-#define HTTP_POST "AT+HTTPACTION=1\n"
-#define HTTP_DATA "AT+HTTPDATA=%d,%d\r\n"
-#define HTTP_READ "AT+HTTPREAD\r\n"
-#define HTTP_CLOSE "AT+HTTPTERM\r\n"
-#define HTTP_CONTENT "AT+HTTPPARA=\"CONTENT\",\"application/json\"\r\n"
-#define HTTPS_ENABLE "AT+HTTPSSL=1\r\n"
-#define HTTPS_DISABLE "AT+HTTPSSL=0\r\n"
-#define NORMAL_MODE "AT+CFUN=1,1\r\n"
-#define REGISTRATION_STATUS "AT+CREG?\r\n"
-#define SIGNAL_QUALITY "AT+CSQ\r\n"
-#define READ_VOLTAGE "AT+CBC\r\n"
-#define SLEEP_MODE_2 "AT+CSCLK=2\r\n"
-#define SLEEP_MODE_1 "AT+CSCLK=1\r\n"
-#define SLEEP_MODE_0 "AT+CSCLK=0\r\n"
-#define READ_GPS "AT+CIPGSMLOC=1,1\r\n"
-#define OK "OK\r\n"
-#define DOWNLOAD "DOWNLOAD"
-#define HTTP_2XX ",2XX,"
-#define HTTPS_PREFIX "https://"
-#define CONNECTED "+CREG: 0,1"
-#define ROAMING "+CREG: 0,5"
-#define BEARER_OPEN "+SAPBR: 1,1"
+// #define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r\n"
+// #define BEARER_PROFILE_APN "AT+SAPBR=3,1,\"APN\",\"%s\"\r\n"
+// #define QUERY_BEARER "AT+SAPBR=2,1\r\n"
+// #define OPEN_GPRS_CONTEXT "AT+SAPBR=1,1\r\n"
+// #define CLOSE_GPRS_CONTEXT "AT+SAPBR=0,1\r\n"
+// #define HTTP_INIT "AT+HTTPINIT\r\n"
+// #define HTTP_CID "AT+HTTPPARA=\"CID\",1\r\n"
+// #define HTTP_PARA "AT+HTTPPARA=\"URL\",\"%s\"\r\n"
+// #define HTTP_GET "AT+HTTPACTION=0\r\n"
+// #define HTTP_POST "AT+HTTPACTION=1\n"
+// #define HTTP_DATA "AT+HTTPDATA=%d,%d\r\n"
+// #define HTTP_READ "AT+HTTPREAD\r\n"
+// #define HTTP_CLOSE "AT+HTTPTERM\r\n"
+// #define HTTP_CONTENT "AT+HTTPPARA=\"CONTENT\",\"application/json\"\r\n"
+// #define HTTPS_ENABLE "AT+HTTPSSL=1\r\n"
+// #define HTTPS_DISABLE "AT+HTTPSSL=0\r\n"
+// #define NORMAL_MODE "AT+CFUN=1,1\r\n"
+// #define REGISTRATION_STATUS "AT+CREG?\r\n"
+// #define SIGNAL_QUALITY "AT+CSQ\r\n"
+// #define READ_VOLTAGE "AT+CBC\r\n"
+// #define SLEEP_MODE_2 "AT+CSCLK=2\r\n"
+// #define SLEEP_MODE_1 "AT+CSCLK=1\r\n"
+// #define SLEEP_MODE_0 "AT+CSCLK=0\r\n"
+// #define READ_GPS "AT+CIPGSMLOC=1,1\r\n"
+// #define OK "OK\r\n"
+// #define DOWNLOAD "DOWNLOAD"
+// #define HTTP_2XX ",2XX,"
+// #define HTTPS_PREFIX "https://"
+// #define CONNECTED "+CREG: 0,1"
+// #define ROAMING "+CREG: 0,5"
+// #define BEARER_OPEN "+SAPBR: 1,1"
 
 enum Result {
   SUCCESS = 0,
@@ -76,7 +76,7 @@ class GPRSLib
 private:
     uint32_t _baud;
     uint32_t _timeout = TIME_OUT_READ_SERIAL;
-    AltSoftSerial *_serial1;
+    AltSoftSerial _serial1;
     bool _debug;
     char *_buffer;
     char _tmpBuf[32];
@@ -84,7 +84,7 @@ private:
     char _smsVal[32];
     uint16_t _bufferSize;
 
-    void _clearBuffer(char *buffer, uint32_t size);
+    void _clearBuffer(char *buffer, uint8_t size);
     int _readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout);
     int _readSerialUntilCrLf(char *buffer, uint8_t bufferSize);
     int _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex);
@@ -130,7 +130,7 @@ public:
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);
     uint8_t signalQuality();
-    Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, unsigned int outputSize);
+    Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, uint16_t outputSize);
     void lowerCmd(char *s);
     void lower(char *s);
     bool getValue(char *buffer, char *cmd, char *output, uint16_t outputLength);

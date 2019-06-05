@@ -4,12 +4,10 @@
 
 GPSLib::GPSLib()
 {
-    _gps = new NMEAGPS(); // This parses the GPS characters
 }
 
 GPSLib::~GPSLib()
 {
-    delete _gps;
 }
 
 void GPSLib::setup(uint32_t baud, bool debug)
@@ -21,28 +19,28 @@ void GPSLib::setup(uint32_t baud, bool debug)
 
 void GPSLib::loop()
 {
-    if (_gps->available(gpsPort))
+    if (_gps.available(gpsPort))
     {
-        gps_fix f = _gps->read();
+        gps_fix f = _gps.read();
         if (f.valid.location && f.latitude() != 0 && f.longitude() != 0)
             fix = f;
 
         if (!_debug)
             return;
 
-        DEBUG_PRINT(F("Location: "));
+        DBG_PRN(F("Location: "));
         if (fix.valid.location)
         {
-            DEBUG_PRINTFLOAT(fix.latitude(), 6);
-            DEBUG_PRINT(',');
-            DEBUG_PRINTFLOAT(fix.longitude(), 6);
+            DBG_PRNFL(fix.latitude(), 6);
+            DBG_PRN(',');
+            DBG_PRNFL(fix.longitude(), 6);
         }
 
-        DEBUG_PRINT(F(", Altitude: "));
+        DBG_PRN(F(", Altitude: "));
         if (fix.valid.altitude)
         {
-            DEBUG_PRINT(fix.altitude());
+            DBG_PRN(fix.altitude());
         }
-        DEBUG_PRINTLN();
+        DBG_PRNLN();
     }
 }

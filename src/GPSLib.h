@@ -5,13 +5,12 @@
 class GPSLib
 {
 private:
-    NeoSWSerial *_serial1;
     bool _debug;
     uint32_t _index;
     bool _newline;
     uint32_t _oldlines;
 
-    NMEAGPS *_gps; // This parses the GPS characters
+    NMEAGPS _gps; // This parses the GPS characters
 
     void _clearBuffer();
 
