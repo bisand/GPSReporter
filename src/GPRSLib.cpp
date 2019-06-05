@@ -81,7 +81,7 @@ void GPRSLib::gprsDebug()
 	}
 }
 
-void GPRSLib::setSmsCallback(void (*smsCallback)(const char *tel, char *msg))
+void GPRSLib::setSmsCallback(void (*smsCallback)(const char *tel, char *cmd, char *val))
 {
 	_smsCallback = smsCallback;
 }
@@ -97,18 +97,6 @@ bool GPRSLib::smsInit()
 	_writeSerial(F("AT+CNMI=0,0,0,0,0\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return false;
-
-	// for (size_t i = 0; i < 5; i++)
-	// {
-	// 	_writeSerial(F("AT+CMGD="));
-	// 	char num[8];
-	// 	_clearBuffer(num, sizeof(num));
-	// 	itoa(i, num, 10);
-	// 	_writeSerial(num);
-	// 	_writeSerial(F("\r\n"));
-	// 	char tmp[32];
-	// 	_readSerialUntilOkOrError(tmp, sizeof(tmp));
-	// }
 
 	return true;
 }
@@ -152,7 +140,11 @@ void GPRSLib::smsRead()
 			_removeChar(_buffer, '\n');
 			_removeChar(_buffer, '\r');
 			if (_smsCallback != NULL && strlen(_buffer) > 1)
-				_smsCallback(_tmpBuf, _buffer);
+			{
+				getSmsCmd(_buffer, _smsCmd, sizeof(_smsCmd));
+				getSmsVal(_buffer, _smsVal, sizeof(_smsVal));
+				_smsCallback(_tmpBuf, _smsCmd, _smsVal);
+			}
 		}
 		else if (newMsg && strstr(_buffer, "OK\r\n") != NULL)
 		{
@@ -396,13 +388,17 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 1, _tmpBuf, sizeof(_tmpBuf));
 	if (atoi(_tmpBuf) != 1)
-		DEBUG_PRINT(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
-
+	{
+		DEBUG_PRINT(F("ERROR: +HTTPACTION: ")); //return ERROR_HTTP_POST;
+		DEBUG_PRINT(_tmpBuf);
+	}
 	_getResponseParams(_buffer, "+HTTPACTION:", 2, _tmpBuf, sizeof(_tmpBuf));
 	int httpResult = atoi(_tmpBuf);
 	if (httpResult < 200 || httpResult >= 300)
-		DEBUG_PRINT(F("ERROR: +HTTPACTION:")); //return ERROR_HTTP_POST;
-
+	{
+		DEBUG_PRINT(F("ERROR: +HTTPACTION: ")); //return ERROR_HTTP_POST;
+		DEBUG_PRINT(_tmpBuf);
+	}
 	if (read)
 	{
 		_writeSerial(F("AT+HTTPREAD\r\n"));
@@ -418,56 +414,73 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	return SUCCESS;
 }
 
-bool GPRSLib::getSmsCmd(char *buffer, const char *cmd, char *output, uint16_t outputLength)
+void GPRSLib::lowerCmd(char *s)
 {
-	_clearBuffer(output, outputLength);
+	char *p;
 
-	char *buf = strstr(buffer, cmd);
-	if (buf == NULL)
-		return false;
-
-	strcpy(output, cmd);
-	return true;
+	for (p = s; *p != ' ' && *p != '\0'; p++)
+		*p = (char)tolower(*p);
 }
-bool GPRSLib::getSmsVal(char *buffer, const char *cmd, char *output, uint16_t outputLength)
-{
-	_clearBuffer(output, outputLength);
 
-	char *buf = strstr(buffer, cmd);
-	if (buf == NULL)
-		return false;
-	
-	buf = strstr(buffer, " ");
-	strncpy(output, &buf[1], outputLength);
-	return true;
+void GPRSLib::lower(char *s)
+{
+	char *p;
+
+	for (p = s; *p != '\0'; p++)
+		*p = (char)tolower(*p);
 }
-bool GPRSLib::getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength)
+
+bool GPRSLib::getSmsCmd(char *buffer, char *output, uint16_t outputLength)
 {
+	if (outputLength < 1)
+		return false;
 	_clearBuffer(output, outputLength);
-
-	bool result = false;
-	uint8_t idx = 0;
-	char *buf = strstr(buffer, cmd);
-	if (buf == NULL)
+	uint16_t count = 0;
+	for (; *buffer != ' ' && *buffer != '\0'; buffer++)
 	{
-		return result;
-	}
-	uint8_t cmdLen = strlen(cmd);
-	char *cmdBuf = strdup(&buf[cmdLen]);
-
-	char *pch;
-	pch = strtok(cmdBuf, " ");
-	while (pch != NULL)
-	{
-		if (++idx == paramNum)
+		if (count++ >= outputLength - 1)
 		{
-			strcpy(output, pch);
-			result = true;
+			*output++ = '\0';
 			break;
 		}
-		pch = strtok(NULL, " ");
+		*output++ = (char)tolower(*buffer);
 	}
-	free(cmdBuf);
+
+	return strlen(output) > 0;
+}
+
+bool GPRSLib::getSmsVal(char *buffer, char *output, uint16_t outputLength)
+{
+	if (outputLength < 1)
+		return false;
+	_clearBuffer(output, outputLength);
+
+	char *buf = strstr(buffer, " ");
+	if (buf != NULL && outputLength > 1)
+	{
+		strncpy(output, &buf[1], outputLength - 1);
+		output[outputLength - 1] = '\0';
+	}
+	return strlen(output) > 0;
+}
+
+bool GPRSLib::getValue(char *buffer, char *cmd, char *output, uint16_t outputLength)
+{
+    bool result = false;
+	_clearBuffer(output, outputLength);
+    char *cmdTest = strdup(cmd);
+	lower(cmdTest);
+	uint16_t len = strlen(cmdTest);
+	char cmdBuf[len + 1];
+	_clearBuffer(cmdBuf, len + 1);
+	getSmsCmd(buffer, cmdBuf, len + 1);
+	lower(cmdBuf);
+	if (strncmp(cmdTest, cmdBuf, len) == 0)
+	{
+		if (getSmsVal(buffer, output, outputLength))
+			result = true;
+	}
+    free(cmdTest);
 	return result;
 }
 

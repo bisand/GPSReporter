@@ -80,6 +80,8 @@ private:
     bool _debug;
     char *_buffer;
     char _tmpBuf[32];
+    char _smsCmd[16];
+    char _smsVal[32];
     uint16_t _bufferSize;
 
     void _clearBuffer(char *buffer, uint32_t size);
@@ -96,7 +98,7 @@ private:
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
     void _removeChar(char *buffer, char chr);
-    void (*_smsCallback)(const char* tel, char* msg);
+    void (*_smsCallback)(const char* tel, char *cmd, char *val);
 public:
     // uint8_t RX_PIN;
     // uint8_t TX_PIN;
@@ -111,7 +113,7 @@ public:
     void flush();
     void resetAll();
     void resetGsm();
-    void setSmsCallback(void (*smsCallback)(const char* tel, char* msg));
+    void setSmsCallback(void (*smsCallback)(const char* tel, char *cmd, char *val));
     void setup(uint32_t baud, bool debug = false);
     Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
     Result gprsCloseConn();
@@ -128,7 +130,9 @@ public:
     Result connectBearer(const char *apn, const char *username, const char *password);
     uint8_t signalQuality();
     Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, unsigned int outputSize);
-    bool getValue(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
-    bool getSmsCmd(char *buffer, const char *cmd, char *output, uint16_t outputLength);
-    bool getSmsVal(char *buffer, const char *cmd, char *output, uint16_t outputLength);
+    void lowerCmd(char *s);
+    void lower(char *s);
+    bool getValue(char *buffer, char *cmd, char *output, uint16_t outputLength);
+    bool getSmsCmd(char *buffer, char *output, uint16_t outputLength);
+    bool getSmsVal(char *buffer, char *output, uint16_t outputLength);
 };

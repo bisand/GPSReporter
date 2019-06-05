@@ -122,13 +122,15 @@ void saveConfig()
 /*****************************************************
  * SMS received callback
  *****************************************************/
-void smsReceived(const char *tel, char *msg)
+void smsReceived(const char *tel, char *cmd, char *val)
 {
   DEBUG_PRINT(F("Receiving SMS from \""));
   DEBUG_PRINT(tel);
   DEBUG_PRINTLN(F("\""));
   DEBUG_PRINT(F("With message: \""));
-  DEBUG_PRINT(msg);
+  DEBUG_PRINT(cmd);
+  DEBUG_PRINT(F(" "));
+  DEBUG_PRINT(val);
   DEBUG_PRINTLN(F("\""));
 
   loadConfig();
@@ -137,11 +139,9 @@ void smsReceived(const char *tel, char *msg)
     strcpy(config.owner, tel);
   }
 
-  if (strcasestr(msg, "resetall") != NULL)
+  if (strcmp(cmd, "resetall") == 0)
   {
-    char tmp[16];
-    gprs.getValue(msg, "resetall", 1, tmp, 16);
-    if (strcmp(imei, tmp) != 0)
+    if (strcmp(imei, val) != 0)
     {
       DEBUG_PRINT(F("IMEI \""));
       DEBUG_PRINT(tmp);
@@ -169,33 +169,33 @@ void smsReceived(const char *tel, char *msg)
     DEBUG_PRINTLN(F("\""));
     return;
   }
-  if (strcasestr(msg, "resetgsm") != NULL)
+  if (strcmp(cmd, "resetgsm") == 0)
   {
     DEBUG_PRINTLN(F("Reset GSM"));
     delay(1000);
     gprs.resetGsm();
   }
-  else if (strcasestr(msg, "reset") != NULL)
+  else if (strcmp(cmd, "reset") == 0)
   {
     DEBUG_PRINTLN(F("Reset board"));
     delay(1000);
     gprs.resetAll();
   }
-  else if (strcasestr(msg, "mmsi") != NULL)
+  else if (strcmp(cmd, "mmsi") == 0)
   {
-    gprs.getValue(msg, "mmsi", 1, config.mmsi, 16);
+    strncpy(config.mmsi, val, sizeof(config.mmsi));
     DEBUG_PRINT(F("MMSI: "));
     DEBUG_PRINTLN(config.mmsi);
   }
-  else if (strcasestr(msg, "callsign") != NULL)
+  else if (strcmp(cmd, "callsign") == 0)
   {
-    gprs.getValue(msg, "callsign", 1, config.callsign, 10);
+    strncpy(config.callsign, val, sizeof(config.callsign));
     DEBUG_PRINT(F("Callsign: "));
     DEBUG_PRINTLN(config.callsign);
   }
-  else if (strcasestr(msg, "shipname") != NULL)
+  else if (strcmp(cmd, "shipname") == 0)
   {
-    gprs.getValue(msg, "shipname", 1, config.shipname, 20);
+    strncpy(config.shipname, val, sizeof(config.shipname));
     DEBUG_PRINT(F("Ship name: "));
     DEBUG_PRINTLN(config.shipname);
   }
