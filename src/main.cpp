@@ -177,14 +177,14 @@ void smsReceived(const char *tel, char *cmd, char *val)
 }
 
 /*****************************************************
- * Retrieves a PROGMEM constant and retturn a pointer
- * to its temporary memory location.
+ * Retrieves a PROGMEM constant and return a pointer
+ * to its allocated memory location.
  * Remember to release the allocated result with free()
  *****************************************************/
 char *pgm(const char *s)
 {
   char *r = (char *)calloc(strlen_P(s), sizeof(char));
-  strcpy_P(r, (char *)pgm_read_ptr(&s));
+  strcpy_P(r, (PGM_P)pgm_read_ptr(&s));
   return r;
 }
 //#define P(str) (strcpy_P(p_buffer, PSTR(str)), p_buffer)
@@ -199,8 +199,11 @@ bool sendJsonData(JsonDocument *data)
 
   char *tmpUrl = pgm(postUrl);
   char *tmpType = pgm(postContentType);
-  if (tmpUrl == NULL || tmpType == NULL)
+  if (tmpUrl == NULL || tmpType == NULL){
+    DBG_PRNLN(F("Failed to allocate memory for PostUrl or ContentType. Restarting..."));
+    delay(1000);
     gprs.resetAll();
+  }
 
   Result res = gprs.httpPostJson(tmpUrl, data, tmpType, true, tmpBuffer, sizeof(tmpBuffer));
 
