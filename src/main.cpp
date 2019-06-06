@@ -22,6 +22,9 @@
 /*****************************************************
  * Global declarations
  *****************************************************/
+const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
+const char postContentType[] PROGMEM = "application/json";
+
 uint64_t lastMillis = 0;
 uint64_t interval = 15000;
 uint64_t sensLastMillis = 0;
@@ -40,9 +43,6 @@ struct Config
   char callsign[10];
   uint32_t checksum;
 };
-
-const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
-const char postContentType[] PROGMEM = "application/json";
 
 StaticJsonDocument<256> jsonDoc;
 char gprsBuffer[128];
@@ -175,8 +175,18 @@ void smsReceived(const char *tel, char *cmd, char *val)
   saveConfig();
 }
 
-char p_buffer[50];
-#define P(str) (strcpy_P(p_buffer, PSTR(str)), p_buffer)
+/*****************************************************
+ * Retrieves a PROGMEM constant and retturn a pointer
+ * to its temporary memory location.
+ * Remember to release the allocated result with free()
+ *****************************************************/
+char *pgm(const char *s)
+{
+  char *r = (char *)calloc(strlen_P(s), sizeof(char));
+  strcpy_P(r, (char *)pgm_read_ptr(&s));
+  return r;
+}
+//#define P(str) (strcpy_P(p_buffer, PSTR(str)), p_buffer)
 
 /*****************************************************
  * Send data
@@ -185,13 +195,19 @@ void sendJsonData(JsonDocument *data)
 {
   gprs.connectBearer("telenor");
   delay(50);
-  char tmpUrl[strlen_P(postUrl)];
-  strcpy_P(tmpUrl, (char *)pgm_read_ptr(&postUrl));
-  char tmpType[strlen_P(postContentType)];
-  strcpy_P(tmpType, (char *)pgm_read_ptr(&postContentType));
+
+  char *tmpUrl = pgm(postUrl);
+  char *tmpType = pgm(postContentType);
+  if (tmpUrl == NULL || tmpType == NULL)
+    gprs.resetAll();
+
   Result res = gprs.httpPostJson(tmpUrl, data, tmpType, true, tmpBuffer, sizeof(tmpBuffer));
   if (res != SUCCESS)
     DBG_PRNLN(F("HTTP POST failed!"));
+
+  free(tmpUrl);
+  free(tmpBuffer);
+
   delay(50);
   gprs.gprsCloseConn();
   delay(50);
