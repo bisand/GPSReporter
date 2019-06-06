@@ -19,6 +19,9 @@
 #define FULL_DEBUG false
 #define GSM_DEBUG false
 
+/*****************************************************
+ * Global declarations
+ *****************************************************/
 uint64_t lastMillis = 0;
 uint64_t interval = 15000;
 uint64_t sensLastMillis = 0;
@@ -29,9 +32,6 @@ uint64_t gpsLastMillis = 0;
 uint64_t gpsInterval = 50;
 bool resetAll = false;
 
-/*****************************************************
- * Global declarations
- *****************************************************/
 struct Config
 {
   char owner[16];
@@ -174,6 +174,9 @@ void smsReceived(const char *tel, char *cmd, char *val)
   }
   saveConfig();
 }
+
+char p_buffer[50];
+#define P(str) (strcpy_P(p_buffer, PSTR(str)), p_buffer)
 
 /*****************************************************
  * Send data
