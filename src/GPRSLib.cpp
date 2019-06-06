@@ -99,7 +99,7 @@ bool GPRSLib::smsInit()
 	return true;
 }
 
-void GPRSLib::smsRead()
+int8_t GPRSLib::smsRead()
 {
 	// Example:
 	// AT+CMGL="ALL"
@@ -112,6 +112,7 @@ void GPRSLib::smsRead()
 	//
 	// OK
 
+	bool result = 0;
 	bool newMsg = false;
 	uint64_t timerStart, timerEnd;
 	uint32_t timeout = 5000;
@@ -142,6 +143,7 @@ void GPRSLib::smsRead()
 				getSmsCmd(_buffer, _smsCmd, sizeof(_smsCmd));
 				getSmsVal(_buffer, _smsVal, sizeof(_smsVal));
 				_smsCallback(_tmpBuf, _smsCmd, _smsVal);
+				result++;
 			}
 		}
 		else if (newMsg && strstr(_buffer, "OK\r\n") != NULL)
@@ -152,6 +154,7 @@ void GPRSLib::smsRead()
 		timerEnd = millis();
 		if (timerEnd - timerStart > timeout)
 		{
+			result = -1;
 			break;
 		}
 	} while (strstr(_buffer, "OK\r\n") == NULL);
@@ -168,8 +171,10 @@ void GPRSLib::smsRead()
 		{
 			DBG_PRN(F("Error deleting SMS: "));
 			DBG_PRNLN(msgIdx);
+			DBG_PRNLN(_tmpBuf);
 		}
 	}
+	return result;
 }
 
 bool GPRSLib::gprsIsRegistered()
@@ -370,14 +375,17 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	if (atoi(_tmpBuf) != 1)
 	{
 		DBG_PRN(F("ERROR: +HTTPACTION: ")); //return ERROR_HTTP_POST;
-		DBG_PRN(_tmpBuf);
+		DBG_PRNLN(_tmpBuf);
+		return ERROR_HTTP_POST;
 	}
 	_getResponseParams(_buffer, "+HTTPACTION:", 2, _tmpBuf, sizeof(_tmpBuf));
 	int httpResult = atoi(_tmpBuf);
 	if (httpResult < 200 || httpResult >= 300)
 	{
 		DBG_PRN(F("ERROR: +HTTPACTION: ")); //return ERROR_HTTP_POST;
-		DBG_PRN(_tmpBuf);
+		DBG_PRNLN(_tmpBuf);
+		DBG_PRNLN(_buffer);
+		return ERROR_HTTP_POST;
 	}
 	if (read)
 	{

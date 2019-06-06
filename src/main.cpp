@@ -25,8 +25,8 @@
 /*****************************************************
  * Global declarations
  *****************************************************/
-const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
-const char postContentType[] PROGMEM = "application/json";
+static const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
+static const char postContentType[] PROGMEM = "application/json";
 
 uint64_t lastMillis = 0;
 uint64_t interval = 15000;
@@ -179,6 +179,8 @@ void smsReceived(const char *tel, char *cmd, char *val)
   saveConfig();
 }
 
+#define FPSTR(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
+
 /*****************************************************
  * Retrieves a PROGMEM constant and return a pointer
  * to its allocated memory location.
@@ -186,11 +188,19 @@ void smsReceived(const char *tel, char *cmd, char *val)
  *****************************************************/
 char *pgm(const char *s)
 {
-  size_t len = strlen_P(s) + 1;
-  void *m = malloc(len);
+  const __FlashStringHelper *str = FPSTR(s);
+  if (!str)
+    return NULL; // return if the pointer is void
+  size_t len = strlen_P((PGM_P)str) + 1;
+  char *m = (char *)malloc(len);
   if (m == NULL)
     return NULL;
-  return (char *)memcpy_P(m, (PGM_P)pgm_read_ptr(&s), len);
+  if (len == 1)
+  {
+    m[0] = '\0';
+    return m;
+  }
+  return (char *)memcpy_P(m, (PGM_P)str, len);
 }
 
 /*****************************************************
@@ -317,8 +327,24 @@ void loop()
   }
   else if (millis() > smsLastMillis + smsInterval)
   {
-    gprs.smsRead();
-    DBG_PRNLN(F("Checked SMS!"));
+    if (gprs.smsInit())
+    {
+      int8_t r = gprs.smsRead();
+      if (r == 0)
+        DBG_PRNLN(F("Checked SMS!"));
+      else if (r > 0)
+      {
+        DBG_PRN(F("Found "));
+        DBG_PRN(r);
+        DBG_PRNLN(F(" SMS!"));
+      }
+      else if (r == -1)
+        DBG_PRNLN(F("SMS check timed out!"));
+    }
+    else
+    {
+      DBG_PRNLN(F("Unable to initialize SMS!"));
+    }
 
     smsLastMillis = millis();
   }
@@ -334,7 +360,8 @@ void loop()
     jsonDoc["hix"].set(hidx);
     jsonDoc["lat"].set(gpsLib.fix.latitude());
     jsonDoc["lon"].set(gpsLib.fix.longitude());
-    jsonDoc["hdg"].set(gpsLib.fix.heading());
+    jsonDoc["hdg"].set(gpsLib.fix.heading()); // Should be switched out with compass data.
+    jsonDoc["cog"].set(gpsLib.fix.heading());
     jsonDoc["sog"].set(gpsLib.fix.speed());
     jsonDoc["qos"].set(qos);
     jsonDoc["upt"].set(millis());

@@ -80,7 +80,7 @@ private:
     AltSoftSerial _serial1;
     bool _debug;
     char *_buffer;
-    char _tmpBuf[16];
+    char _tmpBuf[32];
     char _smsCmd[16];
     char _smsVal[32];
     uint16_t _bufferSize;
@@ -126,7 +126,7 @@ public:
     uint8_t gprsSimStatus();
     void gprsDebug();
     bool smsInit();
-    void smsRead();
+    int8_t smsRead();
     Result connectBearer();
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);
