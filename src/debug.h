@@ -1,4 +1,4 @@
-// #define DBG
+#define DBG
 
 #ifdef DBG
 #ifndef DBG_PRN

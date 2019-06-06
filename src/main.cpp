@@ -8,6 +8,9 @@
 #if SERIAL_TX_BUFFER_SIZE > 16
 #warning To increase available memory, you should set Hardware Serial buffers to 16. (framework-arduinoavr\cores\arduino\HardwareSerial.h)
 #endif
+#ifdef DBG
+#warning Debugging is enabled. Remember to disable before production.
+#endif
 
 #define RX 8
 #define TX 9
@@ -183,11 +186,12 @@ void smsReceived(const char *tel, char *cmd, char *val)
  *****************************************************/
 char *pgm(const char *s)
 {
-  char *r = (char *)calloc(strlen_P(s), sizeof(char));
-  strcpy_P(r, (PGM_P)pgm_read_ptr(&s));
-  return r;
+  size_t len = strlen_P(s) + 1;
+  void *m = malloc(len);
+  if (m == NULL)
+    return NULL;
+  return (char *)memcpy_P(m, (PGM_P)pgm_read_ptr(&s), len);
 }
-//#define P(str) (strcpy_P(p_buffer, PSTR(str)), p_buffer)
 
 /*****************************************************
  * Send data
@@ -197,9 +201,11 @@ bool sendJsonData(JsonDocument *data)
   gprs.connectBearer("telenor");
   delay(50);
 
+  // Retrieve text from flash memory.
   char *tmpUrl = pgm(postUrl);
   char *tmpType = pgm(postContentType);
-  if (tmpUrl == NULL || tmpType == NULL){
+  if (tmpUrl == NULL || tmpType == NULL)
+  {
     DBG_PRNLN(F("Failed to allocate memory for PostUrl or ContentType. Restarting..."));
     delay(1000);
     gprs.resetAll();
@@ -208,7 +214,7 @@ bool sendJsonData(JsonDocument *data)
   Result res = gprs.httpPostJson(tmpUrl, data, tmpType, true, tmpBuffer, sizeof(tmpBuffer));
 
   free(tmpUrl);
-  free(tmpBuffer);
+  free(tmpType);
 
   delay(50);
   gprs.gprsCloseConn();
@@ -337,9 +343,9 @@ void loop()
     delay(200);
     jsonDoc.clear();
     delay(200);
-    
-    DBG_PRN(F("Publish data "))
-    if(res)
+
+    DBG_PRN(F("Publish data "));
+    if (res)
       DBG_PRNLN(F("succeeded!"));
     else
       DBG_PRNLN(F("failed!"));
