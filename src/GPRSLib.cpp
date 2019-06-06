@@ -156,7 +156,7 @@ void GPRSLib::smsRead()
 		}
 	} while (strstr(_buffer, "OK\r\n") == NULL);
 
-	for (size_t i = 0; i < msgCount; i++)
+	for (uint8_t i = 0; i < msgCount; i++)
 	{
 		char id[2];
 		itoa(msgIds[i], id, 10);
@@ -214,7 +214,7 @@ bool GPRSLib::gprsIsConnected()
 }
 
 // GET IP Address
-Result GPRSLib::gprsGetIP(char *ipAddress, uint16_t bufferSize)
+Result GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
 {
 	_writeSerial(F("AT+SAPBR=2,1\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != 1)
@@ -304,12 +304,6 @@ uint8_t GPRSLib::signalQuality()
 Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, uint16_t outputSize)
 {
 	_clearBuffer(output, outputSize);
-	bool https = false;
-	if (strstr(url, "https://") != NULL)
-		https = true;
-
-	// if (!gprsIsConnected())
-	// 	return ERROR_OPEN_GPRS_CONTEXT;
 
 	// Terminate http connection, if it opened before!
 	_writeSerial(F("AT+HTTPTERM\r\n"));
@@ -318,7 +312,7 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return ERROR_HTTP_INIT;
 
-	if (https)
+	if (strstr(url, "https://") != NULL)
 	{
 		// Set SSL if https
 		_writeSerial(F("AT+HTTPSSL=1\r\n"));
@@ -371,18 +365,6 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	delay(1000);
 	int idx = _readSerialUntilCrLf(_buffer, _bufferSize);
 	idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
-
-	// uint16_t idx = 0;
-	// do
-	// {
-	// 	idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
-	// 	DBG_PRNLN(_buffer);
-	// 	delay(50);
-	// 	DBG_PRN(F("."));
-	// } while (strstr(_buffer, "+HTTPACTION:") == NULL);
-	// DBG_PRNLN(F(""));
-	// DBG_PRNLN(F("POST buffer: "));
-	// DBG_PRNLN(_buffer);
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 1, _tmpBuf, sizeof(_tmpBuf));
 	if (atoi(_tmpBuf) != 1)
@@ -618,20 +600,20 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferS
 // Read serial until <CR> and <LF> is found.
 // Return:
 // Length of the read string.
-int GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize)
+uint8_t GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize)
 {
 	return _readSerialUntilCrLf(buffer, bufferSize, 0, TIME_OUT_READ_SERIAL);
 }
-int GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex)
+uint8_t GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex)
 {
 	return _readSerialUntilCrLf(buffer, bufferSize, startIndex, TIME_OUT_READ_SERIAL);
 }
-int GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, uint16_t timeout)
+uint8_t GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, uint16_t timeout)
 {
 	char term[] = "\r\n";
 	return _readSerialUntil(buffer, bufferSize, term, startIndex, TIME_OUT_READ_SERIAL);
 }
-int GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout)
+uint8_t GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout)
 {
 	if (startIndex >= bufferSize)
 		return 0;
@@ -677,7 +659,7 @@ int GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator
 	return count;
 }
 
-int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
+uint8_t GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 {
 	_serial1.print(buffer);
 	if (_debug)
@@ -688,7 +670,7 @@ int GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 	return 0;
 }
 
-int GPRSLib::_writeSerial(const char *buffer)
+uint8_t GPRSLib::_writeSerial(const char *buffer)
 {
 	_serial1.print(buffer);
 	if (_debug)

@@ -5,6 +5,10 @@
 #include "EEPROM.h"
 #include "ArduinoJson.h"
 
+#if SERIAL_TX_BUFFER_SIZE > 16
+#warning To increase available memory, you should set Hardware Serial buffers to 16. (framework-arduinoavr\cores\arduino\HardwareSerial.h)
+#endif
+
 #define RX 8
 #define TX 9
 #define RESET 2
@@ -23,7 +27,6 @@ uint64_t smsLastMillis = 0;
 uint64_t smsInterval = 30000;
 uint64_t gpsLastMillis = 0;
 uint64_t gpsInterval = 50;
-bool usbReady = true;
 bool resetAll = false;
 
 /*****************************************************
@@ -38,12 +41,12 @@ struct Config
   uint32_t checksum;
 };
 
-const char postUrl[] = "https://bogenhuset.no/nodered/ais/blackpearl\0";
-const char postContentType[] = "application/json\0";
+const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
+const char postContentType[] PROGMEM = "application/json";
 
-StaticJsonDocument<200> jsonDoc;
-char gprsBuffer[100];
-char tmpBuffer[32];
+StaticJsonDocument<256> jsonDoc;
+char gprsBuffer[128];
+char tmpBuffer[8];
 char imei[16];
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
 GPSLib gpsLib;
@@ -86,9 +89,9 @@ void loadConfig()
   /* Now check the data we just read */
   if (config.checksum != sum)
   {
-    DBG_PRN("Saved config invalid - using defaults ");
+    DBG_PRN(F("Saved config invalid - using defaults "));
     DBG_PRN(config.checksum);
-    DBG_PRN(" <> ");
+    DBG_PRN(F(" <> "));
     DBG_PRNLN(sum);
     defaultConfig();
   }
@@ -125,34 +128,17 @@ void saveConfig()
  *****************************************************/
 void smsReceived(const char *tel, char *cmd, char *val)
 {
-  DBG_PRN(F("Receiving SMS from \""));
-  DBG_PRN(tel);
-  DBG_PRNLN(F("\""));
-  DBG_PRN(F("With message: \""));
-  DBG_PRN(cmd);
-  DBG_PRN(F(" "));
-  DBG_PRN(val);
-  DBG_PRNLN(F("\""));
-
   loadConfig();
   if (strlen(config.owner) < 1)
   {
     strcpy(config.owner, tel);
   }
 
-  if (strcmp(cmd, "resetall") == 0)
+  if (strcmp_P(cmd, PSTR("resetall")) == 0)
   {
     if (strcmp(imei, val) != 0)
-    {
-      DBG_PRN(F("IMEI \""));
-      DBG_PRN(val);
-      DBG_PRNLN(F("\" is not authenticated."));
-      DBG_PRN(F("Expected: \""));
-      DBG_PRN(imei);
-      DBG_PRNLN(F("\""));
       return;
-    }
-    DBG_PRNLN(F("Reset ALL"));
+
     defaultConfig();
     strcpy(config.owner, tel);
     saveConfig();
@@ -161,48 +147,30 @@ void smsReceived(const char *tel, char *cmd, char *val)
   }
 
   if (strcmp(config.owner, tel) != 0)
-  {
-    DBG_PRN(F("User \""));
-    DBG_PRN(tel);
-    DBG_PRNLN(F("\" is not authenticated."));
-    DBG_PRN(F("Expected: \""));
-    DBG_PRN(config.owner);
-    DBG_PRNLN(F("\""));
     return;
-  }
-  if (strcmp(cmd, "resetgsm") == 0)
+
+  if (strcmp_P(cmd, PSTR("resetgsm")) == 0)
   {
-    DBG_PRNLN(F("Reset GSM"));
-    delay(1000);
     gprs.resetGsm();
   }
-  else if (strcmp(cmd, "reset") == 0)
+  else if (strcmp_P(cmd, PSTR("reset")) == 0)
   {
-    DBG_PRNLN(F("Reset board"));
-    delay(1000);
     gprs.resetAll();
   }
-  else if (strcmp(cmd, "mmsi") == 0)
+  else if (strcmp_P(cmd, PSTR("mmsi")) == 0)
   {
     strncpy(config.mmsi, val, sizeof(config.mmsi));
-    DBG_PRN(F("MMSI: "));
-    DBG_PRNLN(config.mmsi);
   }
-  else if (strcmp(cmd, "callsign") == 0)
+  else if (strcmp_P(cmd, PSTR("callsign")) == 0)
   {
     strncpy(config.callsign, val, sizeof(config.callsign));
-    DBG_PRN(F("Callsign: "));
-    DBG_PRNLN(config.callsign);
   }
-  else if (strcmp(cmd, "shipname") == 0)
+  else if (strcmp_P(cmd, PSTR("shipname")) == 0)
   {
     strncpy(config.shipname, val, sizeof(config.shipname));
-    DBG_PRN(F("Ship name: "));
-    DBG_PRNLN(config.shipname);
   }
   else
   {
-    DBG_PRN(F("Unknown SMS"));
   }
   saveConfig();
 }
@@ -214,14 +182,16 @@ void sendJsonData(JsonDocument *data)
 {
   gprs.connectBearer("telenor");
   delay(50);
-  Result res = gprs.httpPostJson(postUrl, data, postContentType, true, tmpBuffer, sizeof(tmpBuffer));
-  if(res != SUCCESS)
+  char tmpUrl[strlen_P(postUrl)];
+  strcpy_P(tmpUrl, (char *)pgm_read_ptr(&postUrl));
+  char tmpType[strlen_P(postContentType)];
+  strcpy_P(tmpType, (char *)pgm_read_ptr(&postContentType));
+  Result res = gprs.httpPostJson(tmpUrl, data, tmpType, true, tmpBuffer, sizeof(tmpBuffer));
+  if (res != SUCCESS)
     DBG_PRNLN(F("HTTP POST failed!"));
   delay(50);
   gprs.gprsCloseConn();
   delay(50);
-  DBG_PRNLN(res);
-  DBG_PRNLN(tmpBuffer);
 }
 
 /*****************************************************
@@ -233,8 +203,8 @@ void setup()
 {
   Serial.begin(BAUD);
 
-  DBG_PRNLN(F(""));
-  DBG_PRN(F("Starting..."));
+  Serial.println(F(""));
+  Serial.print(F("Starting..."));
 
   if (GSM_DEBUG)
   {
@@ -278,7 +248,7 @@ void setup()
 
   // Init Temperature sensor.
   dht.begin();
-  Serial.println(F("Ready!"));
+  Serial.println(F("Started!"));
 }
 
 /*****************************************************
@@ -313,24 +283,15 @@ void loop()
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
     sensLastMillis = millis();
-    DBG_PRNLN(F("Sensors Done!"));
   }
   else if (millis() > smsLastMillis + smsInterval)
   {
     gprs.smsRead();
     smsLastMillis = millis();
-    DBG_PRNLN(F("SMS Done!"));
   }
   else if (millis() > lastMillis + interval)
   {
     loadConfig();
-    DBG_PRN(F("MMSI: "));
-    DBG_PRNLN(config.mmsi);
-    DBG_PRN(F("Callsign: "));
-    DBG_PRNLN(config.callsign);
-    DBG_PRN(F("Ship name: "));
-    DBG_PRNLN(config.shipname);
-
     // Generate JSON document.
     jsonDoc["mmsi"].set(config.mmsi);
     jsonDoc["cs"].set(config.callsign);
@@ -351,6 +312,5 @@ void loop()
     delay(200);
 
     lastMillis = millis();
-    DBG_PRNLN(F("Http Done!"));
   }
 }

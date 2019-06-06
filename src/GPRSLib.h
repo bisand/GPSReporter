@@ -38,7 +38,7 @@
 // #define ROAMING "+CREG: 0,5"
 // #define BEARER_OPEN "+SAPBR: 1,1"
 
-enum Result {
+enum Result : uint8_t {
   SUCCESS = 0,
   ERROR_INITIALIZATION = 1,
   ERROR_BEARER_PROFILE_GPRS = 2,
@@ -60,7 +60,8 @@ enum Result {
   ERROR_HTTPS_ENABLE = 18,
   ERROR_HTTPS_DISABLE = 19
 };
-enum ReadSerialResult
+
+enum ReadSerialResult : int8_t
 {
     CME_ERROR = -4,
     CMS_ERROR = -3,
@@ -74,27 +75,27 @@ enum ReadSerialResult
 class GPRSLib
 {
 private:
-    uint32_t _baud;
-    uint32_t _timeout = TIME_OUT_READ_SERIAL;
+    uint16_t _baud;
+    uint16_t _timeout = TIME_OUT_READ_SERIAL;
     AltSoftSerial _serial1;
     bool _debug;
     char *_buffer;
-    char _tmpBuf[32];
+    char _tmpBuf[16];
     char _smsCmd[16];
     char _smsVal[32];
     uint16_t _bufferSize;
 
     void _clearBuffer(char *buffer, uint8_t size);
-    int _readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout);
-    int _readSerialUntilCrLf(char *buffer, uint8_t bufferSize);
-    int _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex);
-    int _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, uint16_t timeout);
+    uint8_t _readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout);
+    uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize);
+    uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex);
+    uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, uint16_t timeout);
     ReadSerialResult _readSerialUntilOkOrError(char *buffer, uint8_t bufferSize);
     ReadSerialResult _readSerialUntilOkOrError(char *buffer, uint8_t bufferSize, uint16_t timeout);
     ReadSerialResult _readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText);
     ReadSerialResult _readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText, uint16_t timeout);
-    int _writeSerial(const char *buffer);
-    int _writeSerial(const __FlashStringHelper *buffer);
+    uint8_t _writeSerial(const char *buffer);
+    uint8_t _writeSerial(const __FlashStringHelper *buffer);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
@@ -116,7 +117,7 @@ public:
     void resetGsm();
     void setSmsCallback(void (*smsCallback)(const char* tel, char *cmd, char *val));
     void setup(uint32_t baud, bool debug = false);
-    Result gprsGetIP(char *ipAddress, uint16_t bufferSize);
+    Result gprsGetIP(char *ipAddress, uint8_t bufferSize);
     Result gprsCloseConn();
     bool gprsGetImei(char *buffer, uint8_t bufferSize);
     bool gprsIsRegistered();
