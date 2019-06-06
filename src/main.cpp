@@ -128,6 +128,7 @@ void saveConfig()
  *****************************************************/
 void smsReceived(const char *tel, char *cmd, char *val)
 {
+  DBG_PRNLN(F("New SMS received"));
   loadConfig();
   if (strlen(config.owner) < 1)
   {
@@ -191,7 +192,7 @@ char *pgm(const char *s)
 /*****************************************************
  * Send data
  *****************************************************/
-void sendJsonData(JsonDocument *data)
+bool sendJsonData(JsonDocument *data)
 {
   gprs.connectBearer("telenor");
   delay(50);
@@ -202,15 +203,14 @@ void sendJsonData(JsonDocument *data)
     gprs.resetAll();
 
   Result res = gprs.httpPostJson(tmpUrl, data, tmpType, true, tmpBuffer, sizeof(tmpBuffer));
-  if (res != SUCCESS)
-    DBG_PRNLN(F("HTTP POST failed!"));
 
   free(tmpUrl);
   free(tmpBuffer);
 
   delay(50);
   gprs.gprsCloseConn();
-  delay(50);
+
+  return res == SUCCESS;
 }
 
 /*****************************************************
@@ -301,11 +301,16 @@ void loop()
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
+
+    DBG_PRNLN(F("Read sensors!"));
+
     sensLastMillis = millis();
   }
   else if (millis() > smsLastMillis + smsInterval)
   {
     gprs.smsRead();
+    DBG_PRNLN(F("Checked SMS!"));
+
     smsLastMillis = millis();
   }
   else if (millis() > lastMillis + interval)
@@ -325,10 +330,16 @@ void loop()
     jsonDoc["qos"].set(qos);
     jsonDoc["upt"].set(millis());
     delay(50);
-    sendJsonData(&jsonDoc);
+    bool res = sendJsonData(&jsonDoc);
     delay(200);
     jsonDoc.clear();
     delay(200);
+    
+    DBG_PRN(F("Publish data "))
+    if(res)
+      DBG_PRNLN(F("succeeded!"));
+    else
+      DBG_PRNLN(F("failed!"));
 
     lastMillis = millis();
   }
