@@ -33,13 +33,14 @@ uint64_t interval = 15000;
 uint64_t sensLastMillis = 0;
 uint64_t sensInterval = 5000;
 uint64_t smsLastMillis = 0;
-uint64_t smsInterval = 30000;
+uint64_t smsInterval = 7500;
 uint64_t gpsLastMillis = 0;
 uint64_t gpsInterval = 50;
 bool resetAll = false;
 
 struct Config
 {
+  bool active;
   char owner[16];
   char mmsi[16];
   char shipname[20];
@@ -55,6 +56,28 @@ GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
 GPSLib gpsLib;
 DHT dht(DHTPIN, DHTTYPE);
 Config config;
+
+/*****************************************************
+ * Retrieves a PROGMEM constant and return a pointer
+ * to its allocated memory location.
+ * Remember to release the allocated result with free()
+ *****************************************************/
+char *pgm(const char *s)
+{
+  const __FlashStringHelper *str = FPSTR(s);
+  if (!str)
+    return NULL; // return if the pointer is void
+  size_t len = strlen_P((PGM_P)str) + 1;
+  char *m = (char *)malloc(len);
+  if (m == NULL)
+    return NULL;
+  if (len == 1)
+  {
+    m[0] = '\0';
+    return m;
+  }
+  return (char *)memcpy_P(m, (PGM_P)str, len);
+}
 
 /* defaultConfig() is used when the config read from the EEPROM fails */
 /* the integrity check (which usually happens after a change to the */
@@ -132,6 +155,10 @@ void saveConfig()
 void smsReceived(const char *tel, char *cmd, char *val)
 {
   DBG_PRNLN(F("New SMS received"));
+  DBG_PRN(F("Command: "));
+  DBG_PRNLN(cmd);
+  DBG_PRN(F("Value: "));
+  DBG_PRNLN(val);
   loadConfig();
   if (strlen(config.owner) < 1)
   {
@@ -142,6 +169,9 @@ void smsReceived(const char *tel, char *cmd, char *val)
   {
     if (strcmp(imei, val) != 0)
       return;
+    char *sms = pgm(PSTR("Restoring default values..."));
+    gprs.smsSend(tel, sms);
+    free(sms);
 
     defaultConfig();
     strcpy(config.owner, tel);
@@ -155,52 +185,46 @@ void smsReceived(const char *tel, char *cmd, char *val)
 
   if (strcmp_P(cmd, PSTR("resetgsm")) == 0)
   {
+    char *sms = pgm(PSTR("Restarting GSM module..."));
+    gprs.smsSend(tel, sms);
+    free(sms);
     gprs.resetGsm();
   }
   else if (strcmp_P(cmd, PSTR("reset")) == 0)
   {
-    gprs.resetAll();
+    char *sms = pgm(PSTR("Restarting..."));
+    gprs.smsSend(tel, sms);
+    free(sms);
+    delay(1000);
+    resetAll = true;
   }
   else if (strcmp_P(cmd, PSTR("mmsi")) == 0)
   {
     strncpy(config.mmsi, val, sizeof(config.mmsi));
+    saveConfig();
+    char *sms = pgm(PSTR("MMSI successfully stored."));
+    gprs.smsSend(tel, sms);
+    free(sms);
   }
   else if (strcmp_P(cmd, PSTR("callsign")) == 0)
   {
     strncpy(config.callsign, val, sizeof(config.callsign));
+    saveConfig();
+    char *sms = pgm(PSTR("Callsign successfully stored."));
+    gprs.smsSend(tel, sms);
+    free(sms);
   }
   else if (strcmp_P(cmd, PSTR("shipname")) == 0)
   {
     strncpy(config.shipname, val, sizeof(config.shipname));
+    saveConfig();
+    char *sms = pgm(PSTR("MMSI successfully stored."));
+    gprs.smsSend(tel, sms);
+    free(sms);
   }
   else
   {
   }
-  saveConfig();
-}
-
-#define FPSTR(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
-
-/*****************************************************
- * Retrieves a PROGMEM constant and return a pointer
- * to its allocated memory location.
- * Remember to release the allocated result with free()
- *****************************************************/
-char *pgm(const char *s)
-{
-  const __FlashStringHelper *str = FPSTR(s);
-  if (!str)
-    return NULL; // return if the pointer is void
-  size_t len = strlen_P((PGM_P)str) + 1;
-  char *m = (char *)malloc(len);
-  if (m == NULL)
-    return NULL;
-  if (len == 1)
-  {
-    m[0] = '\0';
-    return m;
-  }
-  return (char *)memcpy_P(m, (PGM_P)str, len);
 }
 
 /*****************************************************
@@ -209,7 +233,6 @@ char *pgm(const char *s)
 bool sendJsonData(JsonDocument *data)
 {
   gprs.connectBearer("telenor");
-  delay(50);
 
   // Retrieve text from flash memory.
   char *tmpUrl = pgm(postUrl);
@@ -226,7 +249,6 @@ bool sendJsonData(JsonDocument *data)
   free(tmpUrl);
   free(tmpType);
 
-  delay(50);
   gprs.gprsCloseConn();
 
   return res == SUCCESS;
@@ -308,47 +330,7 @@ void loop()
   if (resetAll)
     gprs.resetAll();
 
-  if (millis() > gpsLastMillis + gpsInterval)
-  {
-    gpsLib.loop();
-    gpsLastMillis = millis();
-  }
-  else if (millis() > sensLastMillis + sensInterval)
-  {
-    qos = gprs.signalQuality();
-    delay(100);
-    temp = dht.readTemperature();
-    humi = dht.readHumidity();
-    hidx = dht.computeHeatIndex(temp, humi, false);
-
-    DBG_PRNLN(F("Read sensors!"));
-
-    sensLastMillis = millis();
-  }
-  else if (millis() > smsLastMillis + smsInterval)
-  {
-    if (gprs.smsInit())
-    {
-      int8_t r = gprs.smsRead();
-      if (r == 0)
-        DBG_PRNLN(F("Checked SMS!"));
-      else if (r > 0)
-      {
-        DBG_PRN(F("Found "));
-        DBG_PRN(r);
-        DBG_PRNLN(F(" SMS!"));
-      }
-      else if (r == -1)
-        DBG_PRNLN(F("SMS check timed out!"));
-    }
-    else
-    {
-      DBG_PRNLN(F("Unable to initialize SMS!"));
-    }
-
-    smsLastMillis = millis();
-  }
-  else if (millis() > lastMillis + interval)
+  if (millis() > lastMillis + interval)
   {
     loadConfig();
     // Generate JSON document.
@@ -365,11 +347,8 @@ void loop()
     jsonDoc["sog"].set(gpsLib.fix.speed());
     jsonDoc["qos"].set(qos);
     jsonDoc["upt"].set(millis());
-    delay(50);
     bool res = sendJsonData(&jsonDoc);
-    delay(200);
     jsonDoc.clear();
-    delay(200);
 
     DBG_PRN(F("Publish data "));
     if (res)
@@ -378,5 +357,37 @@ void loop()
       DBG_PRNLN(F("failed!"));
 
     lastMillis = millis();
+  }
+  if (millis() > smsLastMillis + smsInterval)
+  {
+    int8_t r = gprs.smsRead();
+    if (r == 0)
+      DBG_PRNLN(F("Checked SMS!"));
+    else if (r > 0)
+    {
+      DBG_PRN(F("Found "));
+      DBG_PRN(r);
+      DBG_PRNLN(F(" SMS!"));
+    }
+    else if (r == -1)
+      DBG_PRNLN(F("SMS check timed out!"));
+
+    smsLastMillis = millis();
+  }
+  if (millis() > sensLastMillis + sensInterval)
+  {
+    qos = gprs.signalQuality();
+    temp = dht.readTemperature();
+    humi = dht.readHumidity();
+    hidx = dht.computeHeatIndex(temp, humi, false);
+
+    DBG_PRNLN(F("Read sensors!"));
+
+    sensLastMillis = millis();
+  }
+  if (millis() > gpsLastMillis + gpsInterval)
+  {
+    gpsLib.loop();
+    gpsLastMillis = millis();
   }
 }

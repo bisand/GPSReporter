@@ -99,7 +99,30 @@ bool GPRSLib::smsInit()
 	return true;
 }
 
+bool GPRSLib::smsSend(const char *tel, const char *msg)
+{
+	// TODO Implement a bether SMS sending method.
+	DBG_PRNLN(tel);
+	DBG_PRNLN(msg);
+	return false;
+	//Set SMS mode to ASCII
+	_writeSerial(F("AT+CMGS=\""));
+	_writeSerial(tel);
+	_writeSerial("\"\r\n");
+	_writeSerial(msg);
+	_writeSerial("\x1A");
+	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
+		return false;
+
+	return true;
+}
+
 int8_t GPRSLib::smsRead()
+{
+	return smsRead(false);
+}
+
+int8_t GPRSLib::smsRead(bool readOnly)
 {
 	// Example:
 	// AT+CMGL="ALL"
@@ -121,7 +144,8 @@ int8_t GPRSLib::smsRead()
 	uint8_t msgCount = 0;
 	timerStart = millis();
 
-	_writeSerial(F("AT+CMGL=\"ALL\"\r\n"));
+	if(!readOnly)
+		_writeSerial(F("AT+CMGL=\"ALL\"\r\n"));
 	do
 	{
 		_readSerialUntilCrLf(_buffer, _bufferSize);
@@ -157,7 +181,7 @@ int8_t GPRSLib::smsRead()
 			result = -1;
 			break;
 		}
-	} while (strstr(_buffer, "OK\r\n") == NULL);
+	} while (!readOnly && strstr(_buffer, "OK\r\n") == NULL);
 
 	for (uint8_t i = 0; i < msgCount; i++)
 	{

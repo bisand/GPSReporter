@@ -3,7 +3,9 @@
 #include <ArduinoJson.h>
 #include "debug.h"
 
-#define BUFFER_RESERVE_MEMORY 128
+#ifndef FPSTR
+#define FPSTR(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
+#endif
 #define TIME_OUT_READ_SERIAL 5000
 
 // #define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r\n"
@@ -127,6 +129,8 @@ public:
     void gprsDebug();
     bool smsInit();
     int8_t smsRead();
+    int8_t smsRead(bool readOnly);
+    bool smsSend(const char *tel, const char *msg);
     Result connectBearer();
     Result connectBearer(const char *apn);
     Result connectBearer(const char *apn, const char *username, const char *password);
