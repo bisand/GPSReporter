@@ -135,7 +135,7 @@ int8_t GPRSLib::smsRead(bool readOnly)
 	//
 	// OK
 
-	bool result = 0;
+	int8_t result = 0;
 	bool newMsg = false;
 	uint64_t timerStart, timerEnd;
 	uint32_t timeout = 5000;
