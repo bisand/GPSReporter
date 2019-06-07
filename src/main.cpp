@@ -18,7 +18,9 @@
 
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
-#define BAUD 19200
+#define BAUD_SERIAL 9600
+#define BAUD_GPRS 19200
+#define BAUD_GPS 9600
 #define FULL_DEBUG false
 #define GSM_DEBUG false
 
@@ -235,7 +237,8 @@ void smsReceived(const char *tel, char *cmd, char *val)
  *****************************************************/
 bool sendJsonData(JsonDocument *data)
 {
-  gprs.connectBearer("telenor");
+  if (!gprs.gprsIsBearerOpen())
+    gprs.gprsConnectBearer("telenor");
 
   // Retrieve text from flash memory.
   char *tmpUrl = pgm(postUrl);
@@ -252,7 +255,7 @@ bool sendJsonData(JsonDocument *data)
   free(tmpUrl);
   free(tmpType);
 
-  gprs.gprsCloseConn();
+  //gprs.gprsCloseConn();
 
   return res == SUCCESS;
 }
@@ -264,39 +267,69 @@ bool sendJsonData(JsonDocument *data)
  *****************************************************/
 void setup()
 {
-  Serial.begin(BAUD);
+  Serial.begin(BAUD_SERIAL);
 
   Serial.println(F(""));
   Serial.print(F("Starting..."));
 
   if (GSM_DEBUG)
   {
-    gprs.setup(BAUD, FULL_DEBUG);
+    gprs.setup(BAUD_GPRS, FULL_DEBUG);
     return;
   }
 
-  gprs.setup(BAUD, FULL_DEBUG);
+  gprs.setup(BAUD_GPRS, FULL_DEBUG);
   gprs.setSmsCallback(smsReceived);
   delay(5000);
 
   // Init GPRS.
+  uint8_t maxCount = 0;
   gprs.gprsInit();
-  DBG_PRN(F("."));
-
-  delay(500);
-
-  // Init SMS.
-  gprs.smsInit();
-  DBG_PRN(F("."));
-
-  delay(500);
-
-  while (!gprs.gprsIsConnected())
+  while (gprs.gprsSimStatus() != 0)
   {
+    if (maxCount > 10)
+      break;
     DBG_PRN(F("."));
-    gprs.connectBearer("telenor");
+    maxCount++;
     delay(1000);
   }
+
+  delay(500);
+
+  maxCount = 0;
+  while (!gprs.gprsIsRegistered())
+  {
+    if (maxCount++ > 10)
+      break;
+    gprs.gprsRegister();
+    DBG_PRN(F("."));
+    delay(1000);
+  }
+
+  delay(500);
+
+  maxCount = 0;
+  while (!gprs.gprsIsAttached())
+  {
+    if (maxCount++ > 10)
+      break;
+    gprs.gprsAttach();
+    DBG_PRN(F("."));
+    delay(1000);
+  }
+
+  delay(500);
+
+  maxCount = 0;
+  while (!gprs.gprsIsBearerOpen())
+  {
+    if (maxCount++ > 10)
+      break;
+    gprs.gprsConnectBearer("telenor");
+    DBG_PRN(F("."));
+    delay(1000);
+  }
+
   DBG_PRNLN(F("."));
   DBG_PRNLN(F("Connected!"));
 
@@ -311,10 +344,12 @@ void setup()
     DBG_PRN(F("CCID: "));
     DBG_PRNLN(ccid);
   }
-  gprs.gprsCloseConn();
+
+  // Init SMS.
+  gprs.smsInit();
 
   // Init GPS.
-  gpsLib.setup(9600, FULL_DEBUG);
+  gpsLib.setup(BAUD_GPS, FULL_DEBUG);
 
   // Init Temperature sensor.
   dht.begin();

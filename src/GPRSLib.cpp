@@ -41,8 +41,6 @@ bool GPRSLib::gprsInit()
 	_writeSerial(F("AT+CFUN=1\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return false;
-	if (gprsSimStatus() != 0)
-		return false;
 	return true;
 }
 
@@ -91,7 +89,7 @@ bool GPRSLib::smsInit()
 	_writeSerial(F("AT+CMGF=1\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return false;
-	delay(50);
+
 	//Start listening to New SMS Message Indications
 	_writeSerial(F("AT+CNMI=0,0,0,0,0\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
@@ -196,24 +194,10 @@ int8_t GPRSLib::smsRead()
 	return result;
 }
 
-bool GPRSLib::gprsIsRegistered()
-{
-	bool result = false;
-	_writeSerial(F("AT+SAPBR=2,1\r\n"));
-	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
-
-	_getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
-	if (res == FOUND_EITHER_TEXT && atoi(_tmpBuf) == 1)
-		result = true;
-
-	return result;
-}
-
 bool GPRSLib::gprsGetImei(char *buffer, uint8_t bufferSize)
 {
 	bool result = false;
 	_writeSerial(F("AT+GSN\r\n"));
-	delay(100);
 	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
 
 	_getResponseParams(_buffer, "AT+GSN", 1, buffer, bufferSize);
@@ -227,7 +211,6 @@ bool GPRSLib::gprsGetCcid(char *buffer, uint8_t bufferSize)
 {
 	bool result = false;
 	_writeSerial(F("AT+CCID\r\n"));
-	delay(100);
 	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
 
 	// strncpy(buffer, _buffer, bufferSize);
@@ -238,14 +221,51 @@ bool GPRSLib::gprsGetCcid(char *buffer, uint8_t bufferSize)
 	return result;
 }
 
-bool GPRSLib::gprsIsConnected()
+bool GPRSLib::gprsIsRegistered()
 {
 	bool result = false;
-	_writeSerial(F("AT+SAPBR=2,1\r\n"));
+	_writeSerial(F("AT+CGREG?\r\n"));
 	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
 
-	_getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
+	_getResponseParams(_buffer, "+CGREG:", 2, _tmpBuf, sizeof(_tmpBuf));
+	if (res == FOUND_EITHER_TEXT && (atoi(_tmpBuf) == 1 || atoi(_tmpBuf) == 5))
+		result = true;
+
+	return result;
+}
+
+bool GPRSLib::gprsRegister()
+{
+	bool result = false;
+	_writeSerial(F("AT+CGREG=1\r\n"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+
+	_getResponseParams(_buffer, "+CGREG:", 2, _tmpBuf, sizeof(_tmpBuf));
+	if (res == FOUND_EITHER_TEXT && (atoi(_tmpBuf) == 1 || atoi(_tmpBuf) == 5))
+		result = true;
+
+	return result;
+}
+
+bool GPRSLib::gprsIsAttached()
+{
+	bool result = false;
+	_writeSerial(F("AT+CGATT?\r\n"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+
+	_getResponseParams(_buffer, "+CGATT:", 1, _tmpBuf, sizeof(_tmpBuf));
 	if (res == FOUND_EITHER_TEXT && atoi(_tmpBuf) == 1)
+		result = true;
+
+	return result;
+}
+
+bool GPRSLib::gprsAttach()
+{
+	bool result = false;
+	_writeSerial(F("AT+CGATT=1\r\n"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+	if (res == FOUND_EITHER_TEXT)
 		result = true;
 
 	return result;
@@ -270,7 +290,7 @@ Result GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
 	return SUCCESS;
 }
 
-Result GPRSLib::gprsCloseConn()
+Result GPRSLib::gprsCloseBearer()
 {
 	_writeSerial(F("AT+SAPBR=0,1\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) == 1)
@@ -279,17 +299,30 @@ Result GPRSLib::gprsCloseConn()
 	return ERROR_CLOSE_GPRS_CONTEXT;
 }
 
-Result GPRSLib::connectBearer()
+bool GPRSLib::gprsIsBearerOpen()
 {
-	return connectBearer("internet", "", "");
+	bool result = false;
+	_writeSerial(F("AT+SAPBR=2,1\r\n"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+
+	_getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
+	if (res == FOUND_EITHER_TEXT && atoi(_tmpBuf) == 1)
+		result = true;
+
+	return result;
 }
 
-Result GPRSLib::connectBearer(const char *apn)
+Result GPRSLib::gprsConnectBearer()
 {
-	return connectBearer(apn, "", "");
+	return gprsConnectBearer("internet", "", "");
 }
 
-Result GPRSLib::connectBearer(const char *apn, const char *username, const char *password)
+Result GPRSLib::gprsConnectBearer(const char *apn)
+{
+	return gprsConnectBearer(apn, "", "");
+}
+
+Result GPRSLib::gprsConnectBearer(const char *apn, const char *username, const char *password)
 {
 	_writeSerial(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
@@ -319,11 +352,11 @@ Result GPRSLib::connectBearer(const char *apn, const char *username, const char 
 		return ERROR_OPEN_GPRS_CONTEXT;
 
 	// Query bearer
-	_writeSerial(F("AT+SAPBR=2,1\r\n"));
-	int res = _readSerialUntilOkOrError(_buffer, _bufferSize);
-	_getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
-	if (res != FOUND_EITHER_TEXT || atoi(_tmpBuf) != 1)
-		return ERROR_OPEN_GPRS_CONTEXT;
+	// _writeSerial(F("AT+SAPBR=2,1\r\n"));
+	// int res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+	// _getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
+	// if (res != FOUND_EITHER_TEXT || atoi(_tmpBuf) != 1)
+	// 	return ERROR_OPEN_GPRS_CONTEXT;
 
 	return SUCCESS;
 }
