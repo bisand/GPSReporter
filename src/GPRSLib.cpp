@@ -1,9 +1,10 @@
 #include "GPRSLib.h"
 
-GPRSLib::GPRSLib(char *buffer, uint16_t bufferSize)
+GPRSLib::GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin)
 {
 	_buffer = buffer;
 	_bufferSize = bufferSize;
+	RESET_PIN = resetPin;
 }
 
 GPRSLib::~GPRSLib()
@@ -14,10 +15,10 @@ void GPRSLib::setup(uint32_t baud, bool debug)
 {
 	pinMode(RESET_PIN, OUTPUT);
 	digitalWrite(RESET_PIN, HIGH);
-	delay(500);
-	digitalWrite(RESET_PIN, LOW);
-	delay(500);
-	digitalWrite(RESET_PIN, HIGH);
+	// delay(500);
+	// digitalWrite(RESET_PIN, LOW);
+	// delay(500);
+	// digitalWrite(RESET_PIN, HIGH);
 
 	_baud = baud;
 	_debug = debug;
@@ -119,11 +120,6 @@ bool GPRSLib::smsSend(const char *tel, const char *msg)
 
 int8_t GPRSLib::smsRead()
 {
-	return smsRead(false);
-}
-
-int8_t GPRSLib::smsRead(bool readOnly)
-{
 	// Example:
 	// AT+CMGL="ALL"
 	// +CMGL: 1,"REC UNREAD","+4798802600","","19/05/28,21:15:44+08"
@@ -144,8 +140,7 @@ int8_t GPRSLib::smsRead(bool readOnly)
 	uint8_t msgCount = 0;
 	timerStart = millis();
 
-	if(!readOnly)
-		_writeSerial(F("AT+CMGL=\"ALL\"\r\n"));
+	_writeSerial(F("AT+CMGL=\"ALL\"\r\n"));
 	do
 	{
 		_readSerialUntilCrLf(_buffer, _bufferSize);
@@ -181,7 +176,7 @@ int8_t GPRSLib::smsRead(bool readOnly)
 			result = -1;
 			break;
 		}
-	} while (!readOnly && strstr(_buffer, "OK\r\n") == NULL);
+	} while (strstr(_buffer, "OK\r\n") == NULL);
 
 	for (uint8_t i = 0; i < msgCount; i++)
 	{
@@ -221,8 +216,22 @@ bool GPRSLib::gprsGetImei(char *buffer, uint8_t bufferSize)
 	delay(100);
 	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
 
-	// strncpy(buffer, _buffer, bufferSize);
 	_getResponseParams(_buffer, "AT+GSN", 1, buffer, bufferSize);
+	if (res == FOUND_EITHER_TEXT)
+		result = true;
+
+	return result;
+}
+
+bool GPRSLib::gprsGetCcid(char *buffer, uint8_t bufferSize)
+{
+	bool result = false;
+	_writeSerial(F("AT+CCID\r\n"));
+	delay(100);
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+
+	// strncpy(buffer, _buffer, bufferSize);
+	_getResponseParams(_buffer, "AT+CCID", 1, buffer, bufferSize);
 	if (res == FOUND_EITHER_TEXT)
 		result = true;
 

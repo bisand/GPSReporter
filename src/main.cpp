@@ -14,7 +14,7 @@
 
 #define RX 8
 #define TX 9
-#define RESET 2
+#define RESET 12
 
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
@@ -29,13 +29,15 @@ static const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpe
 static const char postContentType[] PROGMEM = "application/json";
 
 uint64_t lastMillis = 0;
-uint64_t interval = 15000;
+uint16_t interval = 15000;
 uint64_t sensLastMillis = 0;
-uint64_t sensInterval = 5000;
+uint16_t sensInterval = 5000;
 uint64_t smsLastMillis = 0;
-uint64_t smsInterval = 7500;
+uint16_t smsInterval = 10000;
 uint64_t gpsLastMillis = 0;
-uint64_t gpsInterval = 50;
+uint16_t gpsInterval = 50;
+uint64_t resetLastMillis = 0;
+uint16_t resetInterval = 60000;
 bool resetAll = false;
 
 struct Config
@@ -52,7 +54,8 @@ StaticJsonDocument<256> jsonDoc;
 char gprsBuffer[128];
 char tmpBuffer[8];
 char imei[16];
-GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer));
+char ccid[21];
+GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET);
 GPSLib gpsLib;
 DHT dht(DHTPIN, DHTTYPE);
 Config config;
@@ -167,7 +170,7 @@ void smsReceived(const char *tel, char *cmd, char *val)
 
   if (strcmp_P(cmd, PSTR("resetall")) == 0)
   {
-    if (strcmp(imei, val) != 0)
+    if (strcmp(ccid, val) != 0)
       return;
     char *sms = pgm(PSTR("Restoring default values..."));
     gprs.smsSend(tel, sms);
@@ -303,6 +306,13 @@ void setup()
     DBG_PRNLN(imei);
   }
 
+  if (gprs.gprsGetCcid(ccid, sizeof(ccid)))
+  {
+    DBG_PRN(F("CCID: "));
+    DBG_PRNLN(ccid);
+  }
+  gprs.gprsCloseConn();
+
   // Init GPS.
   gpsLib.setup(9600, FULL_DEBUG);
 
@@ -370,7 +380,15 @@ void loop()
       DBG_PRNLN(F(" SMS!"));
     }
     else if (r == -1)
+    {
       DBG_PRNLN(F("SMS check timed out!"));
+      if (millis() > resetLastMillis + resetInterval)
+      {
+        DBG_PRNLN(F("Resetting GSM module..."));
+        gprs.resetGsm();
+        resetLastMillis = millis();
+      }
+    }
 
     smsLastMillis = millis();
   }

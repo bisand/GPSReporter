@@ -111,7 +111,7 @@ public:
     bool LED_FLAG;
     uint32_t BAUDRATE;
 
-    GPRSLib(char *buffer, uint16_t bufferSize);
+    GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin);
     ~GPRSLib();
 
     void flush();
@@ -122,6 +122,7 @@ public:
     Result gprsGetIP(char *ipAddress, uint8_t bufferSize);
     Result gprsCloseConn();
     bool gprsGetImei(char *buffer, uint8_t bufferSize);
+    bool gprsGetCcid(char *buffer, uint8_t bufferSize);
     bool gprsIsRegistered();
     bool gprsIsConnected();
     bool gprsInit();
@@ -129,7 +130,6 @@ public:
     void gprsDebug();
     bool smsInit();
     int8_t smsRead();
-    int8_t smsRead(bool readOnly);
     bool smsSend(const char *tel, const char *msg);
     Result connectBearer();
     Result connectBearer(const char *apn);
