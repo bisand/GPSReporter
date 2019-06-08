@@ -44,26 +44,18 @@ bool GPRSLib::gprsInit()
 	return true;
 }
 
-uint8_t GPRSLib::gprsSimStatus()
+bool GPRSLib::gprsSimReady()
 {
-	uint8_t result = -1;
-	uint8_t count = 0;
-	while (count < 3)
+	_writeSerial(F("AT+CPIN?\r\n"));
+	if (_readSerialUntilOkOrError(_buffer, _bufferSize) == FOUND_EITHER_TEXT)
 	{
-		_writeSerial(F("AT+CPIN?\r\n"));
-		if (_readSerialUntilOkOrError(_buffer, _bufferSize) == FOUND_EITHER_TEXT)
+		_getResponseParams(_buffer, "+CPIN:", 1, _tmpBuf, sizeof(_tmpBuf));
+		if (strstr(_tmpBuf, "READY") != NULL)
 		{
-			_getResponseParams(_buffer, "+CPIN:", 1, _tmpBuf, sizeof(_tmpBuf));
-			if (strstr(_tmpBuf, "READY") != NULL)
-			{
-				result = 0;
-				break;
-			}
+			return true;
 		}
-		count++;
-		delay(300);
 	}
-	return result;
+	return false;
 }
 
 void GPRSLib::gprsDebug()
@@ -271,6 +263,62 @@ bool GPRSLib::gprsAttach()
 	return result;
 }
 
+bool GPRSLib::gprsConnect()
+{
+	return gprsConnect("internet");
+}
+bool GPRSLib::gprsConnect(const char *apn)
+{
+	return gprsConnect(apn, "", "");
+}
+bool GPRSLib::gprsConnect(const char *apn, const char *username, const char *password)
+{
+	return gprsConnect(apn, "", "", 10);
+}
+bool GPRSLib::gprsConnect(const char *apn, const char *username, const char *password, uint8_t retryCount)
+{
+	// Init GPRS.
+	uint8_t count = 0;
+	gprsInit();
+	while (!gprsSimReady())
+	{
+		if (count++ > retryCount)
+			return false;
+		delay(1000);
+	}
+
+	count = 0;
+	while (!gprsIsRegistered())
+	{
+		if (count++ > retryCount)
+			return false;
+		if (gprsRegister())
+			break;
+		delay(1000);
+	}
+
+	count = 0;
+	while (!gprsIsAttached())
+	{
+		if (count++ > retryCount)
+			return false;
+		if (gprsAttach())
+			break;
+		delay(1000);
+	}
+
+	count = 0;
+	while (!gprsIsBearerOpen())
+	{
+		if (count++ > retryCount)
+			return false;
+		if (gprsConnectBearer(apn, username, password) == SUCCESS)
+			break;
+		delay(1000);
+	}
+	return true;
+}
+
 // GET IP Address
 Result GPRSLib::gprsGetIP(char *ipAddress, uint8_t bufferSize)
 {
@@ -350,13 +398,6 @@ Result GPRSLib::gprsConnectBearer(const char *apn, const char *username, const c
 	_writeSerial(F("AT+SAPBR=1,1\r\n"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return ERROR_OPEN_GPRS_CONTEXT;
-
-	// Query bearer
-	// _writeSerial(F("AT+SAPBR=2,1\r\n"));
-	// int res = _readSerialUntilOkOrError(_buffer, _bufferSize);
-	// _getResponseParams(_buffer, "+SAPBR:", 2, _tmpBuf, sizeof(_tmpBuf));
-	// if (res != FOUND_EITHER_TEXT || atoi(_tmpBuf) != 1)
-	// 	return ERROR_OPEN_GPRS_CONTEXT;
 
 	return SUCCESS;
 }
@@ -468,22 +509,6 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	return SUCCESS;
 }
 
-void GPRSLib::lowerCmd(char *s)
-{
-	char *p;
-
-	for (p = s; *p != ' ' && *p != '\0'; p++)
-		*p = (char)tolower(*p);
-}
-
-void GPRSLib::lower(char *s)
-{
-	char *p;
-
-	for (p = s; *p != '\0'; p++)
-		*p = (char)tolower(*p);
-}
-
 bool GPRSLib::getSmsCmd(char *buffer, char *output, uint16_t outputLength)
 {
 	if (outputLength < 1)
@@ -523,12 +548,12 @@ bool GPRSLib::getValue(char *buffer, char *cmd, char *output, uint16_t outputLen
 	bool result = false;
 	_clearBuffer(output, outputLength);
 	char *cmdTest = strdup(cmd);
-	lower(cmdTest);
+	_lower(cmdTest);
 	uint16_t len = strlen(cmdTest);
 	char cmdBuf[len + 1];
 	_clearBuffer(cmdBuf, len + 1);
 	getSmsCmd(buffer, cmdBuf, len + 1);
-	lower(cmdBuf);
+	_lower(cmdBuf);
 	if (strncmp(cmdTest, cmdBuf, len) == 0)
 	{
 		if (getSmsVal(buffer, output, outputLength))
@@ -569,6 +594,22 @@ void GPRSLib::_clearBuffer(char *buffer, uint8_t size)
 	{
 		buffer[i] = '\0';
 	}
+}
+
+void GPRSLib::_lowerCmd(char *s)
+{
+	char *p;
+
+	for (p = s; *p != ' ' && *p != '\0'; p++)
+		*p = (char)tolower(*p);
+}
+
+void GPRSLib::_lower(char *s)
+{
+	char *p;
+
+	for (p = s; *p != '\0'; p++)
+		*p = (char)tolower(*p);
 }
 
 // Read serial until the text "OK" or "ERROR" are found.

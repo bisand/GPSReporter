@@ -38,8 +38,9 @@ uint64_t smsLastMillis = 0;
 uint16_t smsInterval = 10000;
 uint64_t gpsLastMillis = 0;
 uint16_t gpsInterval = 50;
-uint64_t resetLastMillis = 0;
-uint16_t resetInterval = 60000;
+
+uint32_t publishCount = 0;
+uint16_t errorCount = 0;
 bool resetAll = false;
 
 struct Config
@@ -52,11 +53,12 @@ struct Config
   uint32_t checksum;
 };
 
-StaticJsonDocument<256> jsonDoc;
+StaticJsonDocument<300> jsonDoc;
 char gprsBuffer[128];
 char tmpBuffer[8];
 char imei[16];
 char ccid[21];
+char dateTime[20];
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET);
 GPSLib gpsLib;
 DHT dht(DHTPIN, DHTTYPE);
@@ -260,6 +262,12 @@ bool sendJsonData(JsonDocument *data)
   return res == SUCCESS;
 }
 
+char *getDate(char *buffer)
+{
+   sprintf_P(buffer, PSTR("20%02d-%02d-%02dT%02d:%02d:%02d"), gpsLib.fix.dateTime.year, gpsLib.fix.dateTime.month, gpsLib.fix.dateTime.date, gpsLib.fix.dateTime.hours, gpsLib.fix.dateTime.minutes, gpsLib.fix.dateTime.seconds);
+   return buffer;
+}
+
 /*****************************************************
  * 
  * SETUP
@@ -282,56 +290,20 @@ void setup()
   gprs.setSmsCallback(smsReceived);
   delay(5000);
 
-  // Init GPRS.
-  uint8_t maxCount = 0;
-  gprs.gprsInit();
-  while (gprs.gprsSimStatus() != 0)
+  DBG_PRNLN(F("..."));
+  while (true)
   {
-    if (maxCount > 10)
+    if (gprs.gprsConnect("telenor"))
+    {
+      DBG_PRNLN(F("Connected!"));
       break;
-    DBG_PRN(F("."));
-    maxCount++;
-    delay(1000);
+    }
+    else
+    {
+      DBG_PRNLN(F("Unable to connect! Retrying in 5 seconds..."));
+      delay(5000);
+    }
   }
-
-  delay(500);
-
-  maxCount = 0;
-  while (!gprs.gprsIsRegistered())
-  {
-    if (maxCount++ > 10)
-      break;
-    gprs.gprsRegister();
-    DBG_PRN(F("."));
-    delay(1000);
-  }
-
-  delay(500);
-
-  maxCount = 0;
-  while (!gprs.gprsIsAttached())
-  {
-    if (maxCount++ > 10)
-      break;
-    gprs.gprsAttach();
-    DBG_PRN(F("."));
-    delay(1000);
-  }
-
-  delay(500);
-
-  maxCount = 0;
-  while (!gprs.gprsIsBearerOpen())
-  {
-    if (maxCount++ > 10)
-      break;
-    gprs.gprsConnectBearer("telenor");
-    DBG_PRN(F("."));
-    delay(1000);
-  }
-
-  DBG_PRNLN(F("."));
-  DBG_PRNLN(F("Connected!"));
 
   if (gprs.gprsGetImei(imei, sizeof(imei)))
   {
@@ -390,16 +362,26 @@ void loop()
     jsonDoc["hdg"].set(gpsLib.fix.heading()); // Should be switched out with compass data.
     jsonDoc["cog"].set(gpsLib.fix.heading());
     jsonDoc["sog"].set(gpsLib.fix.speed());
+    jsonDoc["utc"].set(getDate(dateTime));
     jsonDoc["qos"].set(qos);
+    jsonDoc["pub"].set(publishCount);
+    jsonDoc["err"].set(errorCount);
     jsonDoc["upt"].set(millis());
     bool res = sendJsonData(&jsonDoc);
     jsonDoc.clear();
 
     DBG_PRN(F("Publish data "));
     if (res)
+    {
+      publishCount++;
       DBG_PRNLN(F("succeeded!"));
+    }
     else
+    {
+      // TODO Add error recovery functionality after a certain amount of errors.
+      errorCount++;
       DBG_PRNLN(F("failed!"));
+    }
 
     lastMillis = millis();
   }
@@ -417,12 +399,6 @@ void loop()
     else if (r == -1)
     {
       DBG_PRNLN(F("SMS check timed out!"));
-      if (millis() > resetLastMillis + resetInterval)
-      {
-        DBG_PRNLN(F("Resetting GSM module..."));
-        gprs.resetGsm();
-        resetLastMillis = millis();
-      }
     }
 
     smsLastMillis = millis();

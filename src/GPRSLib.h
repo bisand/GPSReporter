@@ -6,7 +6,7 @@
 #ifndef FPSTR
 #define FPSTR(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
 #endif
-#define TIME_OUT_READ_SERIAL 5000
+#define TIME_OUT_READ_SERIAL 10000
 
 // #define BEARER_PROFILE_GPRS "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"\r\n"
 // #define BEARER_PROFILE_APN "AT+SAPBR=3,1,\"APN\",\"%s\"\r\n"
@@ -102,6 +102,8 @@ private:
     bool _getResponseParams(char *buffer, const char *cmd, uint8_t paramNum, char *output, uint16_t outputLength);
     void _trimChar(char *buffer, char chr);
     void _removeChar(char *buffer, char chr);
+    void _lowerCmd(char *s);
+    void _lower(char *s);
     void (*_smsCallback)(const char* tel, char *cmd, char *val);
 public:
     // uint8_t RX_PIN;
@@ -129,7 +131,7 @@ public:
     bool gprsIsAttached();
     bool gprsIsBearerOpen();
     bool gprsInit();
-    uint8_t gprsSimStatus();
+    bool gprsSimReady();
     void gprsDebug();
     bool smsInit();
     int8_t smsRead();
@@ -137,10 +139,12 @@ public:
     Result gprsConnectBearer();
     Result gprsConnectBearer(const char *apn);
     Result gprsConnectBearer(const char *apn, const char *username, const char *password);
+    bool gprsConnect();
+    bool gprsConnect(const char *apn);
+    bool gprsConnect(const char *apn, const char *username, const char *password);
+    bool gprsConnect(const char *apn, const char *username, const char *password, uint8_t retryCount);
     uint8_t signalQuality();
     Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, uint16_t outputSize);
-    void lowerCmd(char *s);
-    void lower(char *s);
     bool getValue(char *buffer, char *cmd, char *output, uint16_t outputLength);
     bool getSmsCmd(char *buffer, char *output, uint16_t outputLength);
     bool getSmsVal(char *buffer, char *output, uint16_t outputLength);
