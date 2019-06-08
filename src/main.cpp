@@ -366,7 +366,7 @@ void loop()
     jsonDoc["qos"].set(qos);
     jsonDoc["pub"].set(publishCount);
     jsonDoc["err"].set(errorCount);
-    jsonDoc["upt"].set(millis());
+    jsonDoc["ups"].set(millis()/1000);
     bool res = sendJsonData(&jsonDoc);
     jsonDoc.clear();
 
