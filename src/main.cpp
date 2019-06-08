@@ -53,7 +53,7 @@ struct Config
   uint32_t checksum;
 };
 
-StaticJsonDocument<300> jsonDoc;
+StaticJsonDocument<256> jsonDoc;
 char gprsBuffer[128];
 char tmpBuffer[8];
 char imei[16];
