@@ -127,6 +127,7 @@ public:
     bool gprsGetCcid(char *buffer, uint8_t bufferSize);
     bool gprsRegister();
     bool gprsIsRegistered();
+    bool gprsDetach();
     bool gprsAttach();
     bool gprsIsAttached();
     bool gprsIsBearerOpen();
@@ -143,7 +144,10 @@ public:
     bool gprsConnect(const char *apn);
     bool gprsConnect(const char *apn, const char *username, const char *password);
     bool gprsConnect(const char *apn, const char *username, const char *password, uint8_t retryCount);
+    bool gprsDisconnect();
     uint8_t signalQuality();
+    uint16_t batteryVoltage();
+    uint8_t batteryPercent();
     Result httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, uint16_t outputSize);
     bool getValue(char *buffer, char *cmd, char *output, uint16_t outputLength);
     bool getSmsCmd(char *buffer, char *output, uint16_t outputLength);

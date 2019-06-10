@@ -15,10 +15,10 @@ void GPRSLib::setup(uint32_t baud, bool debug)
 {
 	pinMode(RESET_PIN, OUTPUT);
 	digitalWrite(RESET_PIN, HIGH);
-	// delay(500);
-	// digitalWrite(RESET_PIN, LOW);
-	// delay(500);
-	// digitalWrite(RESET_PIN, HIGH);
+	delay(500);
+	digitalWrite(RESET_PIN, LOW);
+	delay(500);
+	digitalWrite(RESET_PIN, HIGH);
 
 	_baud = baud;
 	_debug = debug;
@@ -263,6 +263,17 @@ bool GPRSLib::gprsAttach()
 	return result;
 }
 
+bool GPRSLib::gprsDetach()
+{
+	bool result = false;
+	_writeSerial(F("AT+CGATT=0\r\n"));
+	ReadSerialResult res = _readSerialUntilOkOrError(_buffer, _bufferSize);
+	if (res == FOUND_EITHER_TEXT)
+		result = true;
+
+	return result;
+}
+
 bool GPRSLib::gprsConnect()
 {
 	return gprsConnect("internet");
@@ -279,15 +290,6 @@ bool GPRSLib::gprsConnect(const char *apn, const char *username, const char *pas
 {
 	// Init GPRS.
 	uint8_t count = 0;
-	gprsInit();
-	while (!gprsSimReady())
-	{
-		if (count++ > retryCount)
-			return false;
-		delay(1000);
-	}
-
-	count = 0;
 	while (!gprsIsRegistered())
 	{
 		if (count++ > retryCount)
@@ -317,6 +319,13 @@ bool GPRSLib::gprsConnect(const char *apn, const char *username, const char *pas
 		delay(1000);
 	}
 	return true;
+}
+
+bool GPRSLib::gprsDisconnect()
+{
+	if (gprsCloseBearer() == SUCCESS && gprsDetach())
+		return true;
+	return false;
 }
 
 // GET IP Address
@@ -413,6 +422,28 @@ uint8_t GPRSLib::signalQuality()
 	return 99;
 }
 
+uint16_t GPRSLib::batteryVoltage()
+{
+	_writeSerial(F("AT+CBC\r\n"));
+	if (_readSerialUntilOkOrError(_buffer, _bufferSize) == FOUND_EITHER_TEXT)
+	{
+		_getResponseParams(_buffer, "+CBC:", 3, _tmpBuf, sizeof(_tmpBuf));
+		return atoi(_tmpBuf);
+	}
+	return 0;
+}
+
+uint8_t GPRSLib::batteryPercent()
+{
+	_writeSerial(F("AT+CBC\r\n"));
+	if (_readSerialUntilOkOrError(_buffer, _bufferSize) == FOUND_EITHER_TEXT)
+	{
+		_getResponseParams(_buffer, "+CBC:", 2, _tmpBuf, sizeof(_tmpBuf));
+		return atoi(_tmpBuf);
+	}
+	return 0;
+}
+
 Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, uint16_t outputSize)
 {
 	_clearBuffer(output, outputSize);
@@ -475,8 +506,20 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 		return ERROR_HTTP_POST;
 
 	delay(1000);
-	int idx = _readSerialUntilCrLf(_buffer, _bufferSize);
-	idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
+	int idx = 0; //_readSerialUntilCrLf(_buffer, _bufferSize);
+	uint64_t timerStart, timerEnd;
+	uint16_t timeout = 10000;
+	timerStart = millis();
+	do
+	{
+		// TODO Remember timeout
+		idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
+		timerEnd = millis();
+		if (timerEnd - timerStart > timeout)
+			break;
+	} while (strstr(_buffer, "+HTTPACTION:") == NULL);
+	
+	// idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 1, _tmpBuf, sizeof(_tmpBuf));
 	if (atoi(_tmpBuf) != 1)
@@ -688,7 +731,7 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferS
 
 	if (_debug)
 	{
-		DBG_PRNLN(F("[DEBUG] [_readSerialUntilEitherOr]\0"));
+		DBG_PRNLN(F("[DEBUG] [_readSerialUntilEitherOr]"));
 		if (result == FOUND_EITHER_TEXT)
 		{
 			DBG_PRN(F("Either text: "));
@@ -762,7 +805,7 @@ uint8_t GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *termin
 
 	if (_debug)
 	{
-		DBG_PRNLN(F("[DEBUG] [_readSerialUntil]\0"));
+		DBG_PRNLN(F("[DEBUG] [_readSerialUntil]"));
 		if (strcmp(terminator, "\r\n") == 0)
 			DBG_PRNLN(F("<CR><LF>"));
 		else
@@ -776,10 +819,14 @@ uint8_t GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *termin
 
 uint8_t GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 {
+	_serial1.flush();
+	while (_serial1.available() > 0)
+		_serial1.read();
+
 	_serial1.print(buffer);
 	if (_debug)
 	{
-		DBG_PRN(F("[DEBUG] [_writeSerial] -> \0"));
+		DBG_PRN(F("[DEBUG] [_writeSerial] -> "));
 		DBG_PRNLN(buffer);
 	}
 	return 0;
@@ -787,10 +834,14 @@ uint8_t GPRSLib::_writeSerial(const __FlashStringHelper *buffer)
 
 uint8_t GPRSLib::_writeSerial(const char *buffer)
 {
+	_serial1.flush();
+	while (_serial1.available() > 0)
+		_serial1.read();
+
 	_serial1.print(buffer);
 	if (_debug)
 	{
-		DBG_PRN(F("[DEBUG] [_writeSerial] -> \0"));
+		DBG_PRN(F("[DEBUG] [_writeSerial] -> "));
 		DBG_PRNLN(buffer);
 	}
 	return 0;

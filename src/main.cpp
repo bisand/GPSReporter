@@ -19,7 +19,7 @@
 #define DHTPIN 2      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD_SERIAL 9600
-#define BAUD_GPRS 19200
+#define BAUD_GPRS 9600
 #define BAUD_GPS 9600
 #define FULL_DEBUG false
 #define GSM_DEBUG false
@@ -30,14 +30,11 @@
 static const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
 static const char postContentType[] PROGMEM = "application/json";
 
-uint64_t lastMillis = 0;
-uint16_t interval = 15000;
-uint64_t sensLastMillis = 0;
-uint16_t sensInterval = 5000;
-uint64_t smsLastMillis = 0;
-uint16_t smsInterval = 10000;
-uint64_t gpsLastMillis = 0;
-uint16_t gpsInterval = 50;
+static unsigned long errResMill = 0UL;
+static unsigned long sensMillis = 0UL;
+static unsigned long smsMillis = 0UL;
+static unsigned long gpsMillis = 0UL;
+static unsigned long pubMillis = 0UL;
 
 uint32_t publishCount = 0;
 uint16_t errorCount = 0;
@@ -257,15 +254,52 @@ bool sendJsonData(JsonDocument *data)
   free(tmpUrl);
   free(tmpType);
 
-  //gprs.gprsCloseConn();
-
   return res == SUCCESS;
 }
 
+/*****************************************************
+ * Get datetime from GPS data.
+ *****************************************************/
 char *getDate(char *buffer)
 {
-   sprintf_P(buffer, PSTR("20%02d-%02d-%02dT%02d:%02d:%02d"), gpsLib.fix.dateTime.year, gpsLib.fix.dateTime.month, gpsLib.fix.dateTime.date, gpsLib.fix.dateTime.hours, gpsLib.fix.dateTime.minutes, gpsLib.fix.dateTime.seconds);
-   return buffer;
+  sprintf_P(buffer, PSTR("20%02d-%02d-%02dT%02d:%02d:%02d"), gpsLib.fix.dateTime.year, gpsLib.fix.dateTime.month, gpsLib.fix.dateTime.date, gpsLib.fix.dateTime.hours, gpsLib.fix.dateTime.minutes, gpsLib.fix.dateTime.seconds);
+  return buffer;
+}
+
+/*****************************************************
+ * Connect
+ *****************************************************/
+void connect()
+{
+  while (true)
+  {
+    if (gprs.gprsConnect("telenor"))
+    {
+      DBG_PRNLN(F("Connected!"));
+      break;
+    }
+    else
+    {
+      DBG_PRNLN(F("Unable to connect! Retrying in 5 seconds..."));
+      gprs.resetGsm();
+      delay(6000);
+    }
+  }
+}
+
+/*****************************************************
+ * Reconnect
+ *****************************************************/
+void reconnect()
+{
+  DBG_PRNLN(F("Disconnecting..."));
+  if (!gprs.gprsDisconnect())
+  {
+    gprs.resetGsm();
+    delay(6000);
+  }
+  DBG_PRNLN(F("Connecting..."));
+  connect();
 }
 
 /*****************************************************
@@ -290,20 +324,15 @@ void setup()
   gprs.setSmsCallback(smsReceived);
   delay(5000);
 
-  DBG_PRNLN(F("..."));
-  while (true)
+  gprs.gprsInit();
+  while (!gprs.gprsSimReady())
   {
-    if (gprs.gprsConnect("telenor"))
-    {
-      DBG_PRNLN(F("Connected!"));
-      break;
-    }
-    else
-    {
-      DBG_PRNLN(F("Unable to connect! Retrying in 5 seconds..."));
-      delay(5000);
-    }
+    gprs.resetGsm();
+    delay(6000);
   }
+
+  DBG_PRNLN(F("..."));
+  connect();
 
   if (gprs.gprsGetImei(imei, sizeof(imei)))
   {
@@ -347,8 +376,26 @@ void loop()
   if (resetAll)
     gprs.resetAll();
 
-  if (millis() > lastMillis + interval)
+  unsigned long currentMillis = millis();
+  if (currentMillis > gpsMillis + 50UL)
   {
+    gpsLib.loop();
+    gpsMillis = currentMillis;
+  }
+  if (currentMillis > (sensMillis + 5000UL))
+  {
+    DBG_PRN(F("Sensors "));
+    qos = gprs.signalQuality();
+    temp = dht.readTemperature();
+    humi = dht.readHumidity();
+    hidx = dht.computeHeatIndex(temp, humi, false);
+    DBG_PRNLN(F("read"));
+
+    sensMillis = currentMillis;
+  }
+  if (currentMillis > (pubMillis + 15000UL))
+  {
+    DBG_PRN(F("Publish data "));
     loadConfig();
     // Generate JSON document.
     jsonDoc["mmsi"].set(config.mmsi);
@@ -366,57 +413,67 @@ void loop()
     jsonDoc["qos"].set(qos);
     jsonDoc["pub"].set(publishCount);
     jsonDoc["err"].set(errorCount);
-    jsonDoc["ups"].set(millis()/1000);
+    jsonDoc["ups"].set(currentMillis / 1000);
     bool res = sendJsonData(&jsonDoc);
     jsonDoc.clear();
 
-    DBG_PRN(F("Publish data "));
     if (res)
     {
       publishCount++;
-      DBG_PRNLN(F("succeeded!"));
+      DBG_PRNLN(F("succeeded"));
     }
     else
     {
-      // TODO Add error recovery functionality after a certain amount of errors.
       errorCount++;
-      DBG_PRNLN(F("failed!"));
+      errResMill = currentMillis;
+      DBG_PRNLN(F("failed"));
+      DBG_PRN(F("Error count: "));
+      DBG_PRNLN(errorCount);
+      // Try to reconnect if there are more that x amount of errors.
+      if (errorCount > 10)
+      {
+        DBG_PRN(F("Error count is "));
+        DBG_PRN(errorCount);
+        DBG_PRNLN(F(". Reconnecting..."));
+        reconnect();
+        errorCount = 0;
+      }
     }
 
-    lastMillis = millis();
+    pubMillis = currentMillis;
+    DBG_PRNLN(pubMillis);
+    DBG_PRNLN(gpsMillis);
+    DBG_PRNLN(sensMillis);
+    DBG_PRNLN(smsMillis);
+    DBG_PRNLN(errResMill);
+
   }
-  if (millis() > smsLastMillis + smsInterval)
+  if (currentMillis > (smsMillis + 10000UL))
   {
+    DBG_PRN(F("Checking SMS: "));
     int8_t r = gprs.smsRead();
     if (r == 0)
-      DBG_PRNLN(F("Checked SMS!"));
+    {
+      DBG_PRNLN(F("Done"));
+    }
     else if (r > 0)
     {
       DBG_PRN(F("Found "));
       DBG_PRN(r);
-      DBG_PRNLN(F(" SMS!"));
+      DBG_PRNLN(F(" SMS"));
     }
     else if (r == -1)
     {
-      DBG_PRNLN(F("SMS check timed out!"));
+      DBG_PRNLN(F("Timed out"));
+      gprs.smsInit();
     }
 
-    smsLastMillis = millis();
+    smsMillis = currentMillis;
   }
-  if (millis() > sensLastMillis + sensInterval)
+  if (currentMillis > (errResMill + 300000UL))
   {
-    qos = gprs.signalQuality();
-    temp = dht.readTemperature();
-    humi = dht.readHumidity();
-    hidx = dht.computeHeatIndex(temp, humi, false);
-
-    DBG_PRNLN(F("Read sensors!"));
-
-    sensLastMillis = millis();
-  }
-  if (millis() > gpsLastMillis + gpsInterval)
-  {
-    gpsLib.loop();
-    gpsLastMillis = millis();
+    DBG_PRNLN(F("Resetting error count"));
+    errorCount = 0;
+    errResMill = currentMillis;
   }
 }

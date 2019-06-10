@@ -1,6 +1,10 @@
+#include "debug.h"
+
+#define RX_PIN 4
+#define TX_PIN 3
+
 #include <NeoSWSerial.h>
 #include <NMEAGPS.h>
-#include "debug.h"
 
 class GPSLib
 {
