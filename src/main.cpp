@@ -30,14 +30,6 @@
 static const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpearl";
 static const char postContentType[] PROGMEM = "application/json";
 
-static unsigned long errResMill = 0UL;
-static unsigned long sensMillis = 0UL;
-static unsigned long smsMillis = 0UL;
-static unsigned long gpsMillis = 0UL;
-static unsigned long pubMillis = 0UL;
-
-uint32_t publishCount = 0;
-uint16_t errorCount = 0;
 bool resetAll = false;
 
 struct Config
@@ -365,6 +357,15 @@ void setup()
 uint8_t qos = 99;
 float temp, humi, hidx;
 
+uint32_t publishCount = 0;
+uint16_t errorCount = 0;
+
+uint64_t errResMillis = 0;
+uint64_t sensMillis = 0;
+uint64_t smsMillis = 0;
+uint64_t gpsMillis = 0;
+uint64_t pubMillis = 0;
+
 void loop()
 {
   if (GSM_DEBUG)
@@ -376,13 +377,17 @@ void loop()
   if (resetAll)
     gprs.resetAll();
 
-  unsigned long currentMillis = millis();
-  if (currentMillis > gpsMillis + 50UL)
+  // Grab current "time".
+  uint64_t currentMillis = millis();
+
+  // Every half second.
+  if (currentMillis > gpsMillis + 50)
   {
     gpsLib.loop();
     gpsMillis = currentMillis;
   }
-  if (currentMillis > (sensMillis + 5000UL))
+  // Every 5 seconds
+  if (currentMillis > (sensMillis + 5000))
   {
     DBG_PRN(F("Sensors "));
     qos = gprs.signalQuality();
@@ -393,7 +398,8 @@ void loop()
 
     sensMillis = currentMillis;
   }
-  if (currentMillis > (pubMillis + 15000UL))
+  // Every 15 seconds.
+  if (currentMillis > (pubMillis + 15000))
   {
     DBG_PRN(F("Publish data "));
     loadConfig();
@@ -425,7 +431,7 @@ void loop()
     else
     {
       errorCount++;
-      errResMill = currentMillis;
+      errResMillis = currentMillis;
       DBG_PRNLN(F("failed"));
       DBG_PRN(F("Error count: "));
       DBG_PRNLN(errorCount);
@@ -441,14 +447,9 @@ void loop()
     }
 
     pubMillis = currentMillis;
-    DBG_PRNLN(pubMillis);
-    DBG_PRNLN(gpsMillis);
-    DBG_PRNLN(sensMillis);
-    DBG_PRNLN(smsMillis);
-    DBG_PRNLN(errResMill);
-
   }
-  if (currentMillis > (smsMillis + 10000UL))
+  // Every 10 seconds.
+  if (currentMillis > (smsMillis + 10000))
   {
     DBG_PRN(F("Checking SMS: "));
     int8_t r = gprs.smsRead();
@@ -470,10 +471,11 @@ void loop()
 
     smsMillis = currentMillis;
   }
-  if (currentMillis > (errResMill + 300000UL))
+  // Every 5 minutes.
+  if (currentMillis > (errResMillis + 300000))
   {
     DBG_PRNLN(F("Resetting error count"));
     errorCount = 0;
-    errResMill = currentMillis;
+    errResMillis = currentMillis;
   }
 }
