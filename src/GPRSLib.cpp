@@ -123,7 +123,7 @@ int8_t GPRSLib::smsRead()
 
 	int8_t result = 0;
 	bool newMsg = false;
-	uint64_t timerStart, timerEnd;
+	unsigned long timerStart, timerEnd;
 	uint32_t timeout = 5000;
 	uint8_t msgIdx = 0;
 	uint8_t msgIds[10];
@@ -507,7 +507,7 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 
 	delay(1000);
 	int idx = 0; //_readSerialUntilCrLf(_buffer, _bufferSize);
-	uint64_t timerStart, timerEnd;
+	unsigned long timerStart, timerEnd;
 	uint16_t timeout = 10000;
 	timerStart = millis();
 	do
@@ -686,7 +686,7 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferS
 {
 	ReadSerialResult result = NOTHING_FOUND;
 	uint8_t index = 0;
-	uint64_t timerStart, timerEnd;
+	unsigned long timerStart, timerEnd;
 	timerStart = millis();
 	uint8_t sumEither, sumOr, lenEither, lenOr;
 	sumEither = sumOr = 0;
@@ -780,7 +780,7 @@ uint8_t GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *termin
 	uint8_t count = 0;
 	uint8_t sum = 0;
 	uint8_t len = strlen(terminator);
-	uint64_t timerStart, timerEnd;
+	unsigned long timerStart, timerEnd;
 	timerStart = millis();
 	char c;
 
