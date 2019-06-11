@@ -116,6 +116,7 @@ void loadConfig()
     DBG_PRN(F(" <> "));
     DBG_PRNLN(sum);
     defaultConfig();
+    saveConfig();
   }
 }
 
