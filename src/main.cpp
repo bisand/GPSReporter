@@ -360,11 +360,11 @@ float temp, humi, hidx;
 uint32_t publishCount = 0;
 uint16_t errorCount = 0;
 
-uint64_t errResMillis = 0;
-uint64_t sensMillis = 0;
-uint64_t smsMillis = 0;
-uint64_t gpsMillis = 0;
-uint64_t pubMillis = 0;
+unsigned long errResMillis = 0;
+unsigned long sensMillis = 0;
+unsigned long smsMillis = 0;
+unsigned long gpsMillis = 0;
+unsigned long pubMillis = 0;
 
 void loop()
 {
@@ -378,7 +378,7 @@ void loop()
     gprs.resetAll();
 
   // Grab current "time".
-  uint64_t currentMillis = millis();
+  unsigned long currentMillis = millis();
 
   // Every half second.
   if (currentMillis > gpsMillis + 50)
