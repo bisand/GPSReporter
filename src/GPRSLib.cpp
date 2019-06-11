@@ -508,7 +508,7 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	delay(1000);
 	int idx = 0; //_readSerialUntilCrLf(_buffer, _bufferSize);
 	unsigned long timerStart, timerEnd;
-	uint16_t timeout = 10000;
+	unsigned long timeout = 10000;
 	timerStart = millis();
 	do
 	{
@@ -666,7 +666,7 @@ ReadSerialResult GPRSLib::_readSerialUntilOkOrError(char *buffer, uint8_t buffer
 	return _readSerialUntilEitherOr(buffer, bufferSize, "OK\r\n", "ERROR\r\n", TIME_OUT_READ_SERIAL);
 }
 
-ReadSerialResult GPRSLib::_readSerialUntilOkOrError(char *buffer, uint8_t bufferSize, uint16_t timeout)
+ReadSerialResult GPRSLib::_readSerialUntilOkOrError(char *buffer, uint8_t bufferSize, unsigned long timeout)
 {
 	return _readSerialUntilEitherOr(buffer, bufferSize, "OK\r\n", "ERROR\r\n", timeout);
 }
@@ -682,7 +682,7 @@ ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferS
 	return _readSerialUntilEitherOr(buffer, bufferSize, eitherText, orText, TIME_OUT_READ_SERIAL);
 }
 
-ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText, uint16_t timeout)
+ReadSerialResult GPRSLib::_readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText, unsigned long timeout)
 {
 	ReadSerialResult result = NOTHING_FOUND;
 	uint8_t index = 0;
@@ -766,12 +766,12 @@ uint8_t GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t 
 {
 	return _readSerialUntilCrLf(buffer, bufferSize, startIndex, TIME_OUT_READ_SERIAL);
 }
-uint8_t GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, uint16_t timeout)
+uint8_t GPRSLib::_readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, unsigned long timeout)
 {
 	char term[] = "\r\n";
 	return _readSerialUntil(buffer, bufferSize, term, startIndex, TIME_OUT_READ_SERIAL);
 }
-uint8_t GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout)
+uint8_t GPRSLib::_readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, unsigned long timeout)
 {
 	if (startIndex >= bufferSize)
 		return 0;

@@ -88,14 +88,14 @@ private:
     uint16_t _bufferSize;
 
     void _clearBuffer(char *buffer, uint8_t size);
-    uint8_t _readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, uint16_t timeout);
+    uint8_t _readSerialUntil(char *buffer, uint8_t bufferSize, char *terminator, uint8_t startIndex, unsigned long timeout);
     uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize);
     uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex);
-    uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, uint16_t timeout);
+    uint8_t _readSerialUntilCrLf(char *buffer, uint8_t bufferSize, uint8_t startIndex, unsigned long timeout);
     ReadSerialResult _readSerialUntilOkOrError(char *buffer, uint8_t bufferSize);
-    ReadSerialResult _readSerialUntilOkOrError(char *buffer, uint8_t bufferSize, uint16_t timeout);
+    ReadSerialResult _readSerialUntilOkOrError(char *buffer, uint8_t bufferSize, unsigned long timeout);
     ReadSerialResult _readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText);
-    ReadSerialResult _readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText, uint16_t timeout);
+    ReadSerialResult _readSerialUntilEitherOr(char *buffer, uint8_t bufferSize, const char *eitherText, const char *orText, unsigned long timeout);
     uint8_t _writeSerial(const char *buffer);
     uint8_t _writeSerial(const __FlashStringHelper *buffer);
     void _extractTextBetween(const char *buffer, const int chr, char *output, unsigned int outputSize);
