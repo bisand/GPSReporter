@@ -89,6 +89,32 @@ void defaultConfig()
   memset(config.shipname, '\0', 20);
 }
 
+/* saveConfig() writes to an EEPROM (or flash on an ESP board). */
+/* Call this after making any changes to the setting variable */
+/* The checksum will be calculated as the data is written */
+void saveConfig()
+{
+  unsigned int sum = 0;
+  unsigned char t;
+  for (unsigned int i = 0; i < sizeof(Config); i++)
+  {
+    if (i == sizeof(config) - sizeof(config.checksum))
+    {
+      config.checksum = sum;
+    }
+    t = *((unsigned char *)&config + i);
+    if (i < sizeof(config) - sizeof(config.checksum))
+    {
+      /* Don't checksum the checksum! */
+      sum = sum + t;
+    }
+    EEPROM.update(i, t);
+  }
+#if defined(ESP8266)
+  EEPROM.commit();
+#endif
+}
+
 /* loadConfig() populates the settings variable, so call this before */
 /* attempting to use settings. If the EEPROM read fails, then */
 /* the defaultConfig() function will be called, so settings are always */
@@ -118,32 +144,6 @@ void loadConfig()
     defaultConfig();
     saveConfig();
   }
-}
-
-/* saveConfig() writes to an EEPROM (or flash on an ESP board). */
-/* Call this after making any changes to the setting variable */
-/* The checksum will be calculated as the data is written */
-void saveConfig()
-{
-  unsigned int sum = 0;
-  unsigned char t;
-  for (unsigned int i = 0; i < sizeof(Config); i++)
-  {
-    if (i == sizeof(config) - sizeof(config.checksum))
-    {
-      config.checksum = sum;
-    }
-    t = *((unsigned char *)&config + i);
-    if (i < sizeof(config) - sizeof(config.checksum))
-    {
-      /* Don't checksum the checksum! */
-      sum = sum + t;
-    }
-    EEPROM.update(i, t);
-  }
-#if defined(ESP8266)
-  EEPROM.commit();
-#endif
 }
 
 /*****************************************************
@@ -297,6 +297,25 @@ void reconnect()
 
 /*****************************************************
  * 
+ * More global variables.
+ * 
+ *****************************************************/
+uint8_t qos = 99;
+uint16_t pwr = 0;
+float temp = 0.0;
+float humi = 0.0;
+float hidx = 0.0;
+
+uint32_t publishCount = 0;
+uint32_t errorCount = 0;
+
+unsigned long errResMillis = 0;
+unsigned long sensMillis = 0;
+unsigned long smsMillis = 0;
+unsigned long gpsMillis = 0;
+unsigned long pubMillis = 0;
+/*****************************************************
+ * 
  * SETUP
  * 
  *****************************************************/
@@ -348,6 +367,22 @@ void setup()
   // Init Temperature sensor.
   dht.begin();
   Serial.println(F("Started!"));
+
+  // HACK to prevent variables from being strangely corrupted.
+  publishCount += 1;
+  publishCount -= 1;
+  errorCount += 1;
+  errorCount -= 1;
+  errResMillis += 1;
+  errResMillis -= 1;
+  sensMillis += 1;
+  sensMillis -= 1;
+  smsMillis += 1;
+  smsMillis -= 1;
+  gpsMillis += 1;
+  gpsMillis -= 1;
+  pubMillis += 1;
+  pubMillis -= 1;
 }
 
 /*****************************************************
@@ -355,18 +390,6 @@ void setup()
  * LOOP
  * 
  *****************************************************/
-uint8_t qos = 99;
-float temp, humi, hidx;
-
-uint32_t publishCount = 0;
-uint16_t errorCount = 0;
-
-unsigned long errResMillis = 0;
-unsigned long sensMillis = 0;
-unsigned long smsMillis = 0;
-unsigned long gpsMillis = 0;
-unsigned long pubMillis = 0;
-
 void loop()
 {
   if (GSM_DEBUG)
@@ -378,11 +401,16 @@ void loop()
   if (resetAll)
     gprs.resetAll();
 
+  if (publishCount >= UINT32_MAX)
+    publishCount = 0;
+  if (errorCount >= UINT32_MAX)
+    errorCount = 0;
+
   // Grab current "time".
   unsigned long currentMillis = millis();
 
-  // Every half second.
-  if (currentMillis > gpsMillis + 50)
+  // Most of the time.
+  if (currentMillis > gpsMillis + 100)
   {
     gpsLib.loop();
     gpsMillis = currentMillis;
@@ -392,62 +420,13 @@ void loop()
   {
     DBG_PRN(F("Sensors "));
     qos = gprs.signalQuality();
+    pwr = gprs.batteryVoltage();
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
     DBG_PRNLN(F("read"));
 
     sensMillis = currentMillis;
-  }
-  // Every 15 seconds.
-  if (currentMillis > (pubMillis + 15000))
-  {
-    DBG_PRN(F("Publish data "));
-    loadConfig();
-    // Generate JSON document.
-    jsonDoc["mmsi"].set(config.mmsi);
-    jsonDoc["cs"].set(config.callsign);
-    jsonDoc["sn"].set(config.shipname);
-    jsonDoc["tmp"].set(temp);
-    jsonDoc["hum"].set(humi);
-    jsonDoc["hix"].set(hidx);
-    jsonDoc["lat"].set(gpsLib.fix.latitude());
-    jsonDoc["lon"].set(gpsLib.fix.longitude());
-    jsonDoc["hdg"].set(gpsLib.fix.heading()); // Should be switched out with compass data.
-    jsonDoc["cog"].set(gpsLib.fix.heading());
-    jsonDoc["sog"].set(gpsLib.fix.speed());
-    jsonDoc["utc"].set(getDate(dateTime));
-    jsonDoc["qos"].set(qos);
-    jsonDoc["pub"].set(publishCount);
-    jsonDoc["err"].set(errorCount);
-    jsonDoc["ups"].set(currentMillis / 1000);
-    bool res = sendJsonData(&jsonDoc);
-    jsonDoc.clear();
-
-    if (res)
-    {
-      publishCount++;
-      DBG_PRNLN(F("succeeded"));
-    }
-    else
-    {
-      errorCount++;
-      errResMillis = currentMillis;
-      DBG_PRNLN(F("failed"));
-      DBG_PRN(F("Error count: "));
-      DBG_PRNLN(errorCount);
-      // Try to reconnect if there are more that x amount of errors.
-      if (errorCount > 10)
-      {
-        DBG_PRN(F("Error count is "));
-        DBG_PRN(errorCount);
-        DBG_PRNLN(F(". Reconnecting..."));
-        reconnect();
-        errorCount = 0;
-      }
-    }
-
-    pubMillis = currentMillis;
   }
   // Every 10 seconds.
   if (currentMillis > (smsMillis + 10000))
@@ -471,6 +450,57 @@ void loop()
     }
 
     smsMillis = currentMillis;
+  }
+  // Every 15 seconds.
+  if (currentMillis > (pubMillis + 15000))
+  {
+    DBG_PRN(F("Publish data "));
+    loadConfig();
+    // Generate JSON document.
+    jsonDoc["mmsi"].set(config.mmsi);
+    jsonDoc["cs"].set(config.callsign);
+    jsonDoc["sn"].set(config.shipname);
+    jsonDoc["tmp"].set(temp);
+    jsonDoc["hum"].set(humi);
+    jsonDoc["hix"].set(hidx);
+    jsonDoc["lat"].set(gpsLib.fix.latitude());
+    jsonDoc["lon"].set(gpsLib.fix.longitude());
+    jsonDoc["hdg"].set(gpsLib.fix.heading()); // Should be switched out with compass data.
+    jsonDoc["cog"].set(gpsLib.fix.heading());
+    jsonDoc["sog"].set(gpsLib.fix.speed());
+    jsonDoc["utc"].set(getDate(dateTime));
+    jsonDoc["qos"].set(qos);
+    jsonDoc["pwr"].set(pwr);
+    jsonDoc["pub"].set(publishCount);
+    jsonDoc["err"].set(errorCount);
+    jsonDoc["ups"].set(currentMillis / 1000);
+    bool res = sendJsonData(&jsonDoc);
+    jsonDoc.clear();
+
+    if (res)
+    {
+      publishCount = publishCount + 1;
+      DBG_PRNLN(F("succeeded"));
+    }
+    else
+    {
+      errorCount = errorCount + 1;
+      errResMillis = currentMillis;
+      DBG_PRNLN(F("failed"));
+      DBG_PRN(F("Error count: "));
+      DBG_PRNLN(errorCount);
+      // Try to reconnect if there are more that x amount of errors.
+      if (errorCount > 10)
+      {
+        DBG_PRN(F("Error count is "));
+        DBG_PRN(errorCount);
+        DBG_PRNLN(F(". Reconnecting..."));
+        reconnect();
+        errorCount = 0;
+      }
+    }
+
+    pubMillis = currentMillis;
   }
   // Every 5 minutes.
   if (currentMillis > (errResMillis + 300000))
