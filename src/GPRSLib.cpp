@@ -99,9 +99,9 @@ bool GPRSLib::smsSend(const char *tel, const char *msg)
 	//Set SMS mode to ASCII
 	_writeSerial(F("AT+CMGS=\""));
 	_writeSerial(tel);
-	_writeSerial("\"\r\n");
+	_writeSerial(F("\"\r\n"));
 	_writeSerial(msg);
-	_writeSerial("\x1A");
+	_writeSerial(F("\x1A"));
 	if (_readSerialUntilOkOrError(_buffer, _bufferSize) != FOUND_EITHER_TEXT)
 		return false;
 
