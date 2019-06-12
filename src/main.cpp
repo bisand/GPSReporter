@@ -410,13 +410,13 @@ void loop()
   unsigned long currentMillis = millis();
 
   // Most of the time.
-  if (currentMillis > gpsMillis + 100)
+  if (currentMillis - gpsMillis >= 100UL)
   {
     gpsLib.loop();
     gpsMillis = currentMillis;
   }
   // Every 5 seconds
-  if (currentMillis > (sensMillis + 5000))
+  if (currentMillis - sensMillis >= 5000UL)
   {
     DBG_PRN(F("Sensors "));
     qos = gprs.signalQuality();
@@ -429,7 +429,7 @@ void loop()
     sensMillis = currentMillis;
   }
   // Every 10 seconds.
-  if (currentMillis > (smsMillis + 10000))
+  if (currentMillis - smsMillis >= 10000UL)
   {
     DBG_PRN(F("Checking SMS: "));
     int8_t r = gprs.smsRead();
@@ -452,7 +452,7 @@ void loop()
     smsMillis = currentMillis;
   }
   // Every 15 seconds.
-  if (currentMillis > (pubMillis + 15000))
+  if (currentMillis - pubMillis >= 15000UL)
   {
     DBG_PRN(F("Publish data "));
     loadConfig();
@@ -503,7 +503,7 @@ void loop()
     pubMillis = currentMillis;
   }
   // Every 5 minutes.
-  if (currentMillis > (errResMillis + 300000))
+  if (currentMillis - errResMillis >= 300000UL)
   {
     DBG_PRNLN(F("Resetting error count"));
     errorCount = 0;
