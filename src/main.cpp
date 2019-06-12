@@ -309,11 +309,11 @@ float hidx = 0.0;
 uint32_t publishCount = 0;
 uint32_t errorCount = 0;
 
-unsigned long errResMillis = 0;
+unsigned long gpsMillis = 0;
 unsigned long sensMillis = 0;
 unsigned long smsMillis = 0;
-unsigned long gpsMillis = 0;
 unsigned long pubMillis = 0;
+unsigned long errResMillis = 0;
 /*****************************************************
  * 
  * SETUP
@@ -367,22 +367,6 @@ void setup()
   // Init Temperature sensor.
   dht.begin();
   Serial.println(F("Started!"));
-
-  // HACK to prevent variables from being strangely corrupted.
-  publishCount += 1;
-  publishCount -= 1;
-  errorCount += 1;
-  errorCount -= 1;
-  errResMillis += 1;
-  errResMillis -= 1;
-  sensMillis += 1;
-  sensMillis -= 1;
-  smsMillis += 1;
-  smsMillis -= 1;
-  gpsMillis += 1;
-  gpsMillis -= 1;
-  pubMillis += 1;
-  pubMillis -= 1;
 }
 
 /*****************************************************
@@ -418,7 +402,8 @@ void loop()
   // Every 5 seconds
   if (currentMillis - sensMillis >= 5000UL)
   {
-    DBG_PRN(F("Sensors "));
+    DBG_PRN(sensMillis);
+    DBG_PRN(F(" - Sensors "));
     qos = gprs.signalQuality();
     pwr = gprs.batteryVoltage();
     temp = dht.readTemperature();
@@ -431,7 +416,8 @@ void loop()
   // Every 10 seconds.
   if (currentMillis - smsMillis >= 10000UL)
   {
-    DBG_PRN(F("Checking SMS: "));
+    DBG_PRN(smsMillis);
+    DBG_PRN(F(" - Checking SMS: "));
     int8_t r = gprs.smsRead();
     if (r == 0)
     {
@@ -451,10 +437,19 @@ void loop()
 
     smsMillis = currentMillis;
   }
+  // Every 5 minutes.
+  if (currentMillis - errResMillis >= 300000UL)
+  {
+    DBG_PRN(errResMillis);
+    DBG_PRNLN(F(" - Resetting error count"));
+    errorCount = 0;
+    errResMillis = currentMillis;
+  }
   // Every 15 seconds.
   if (currentMillis - pubMillis >= 15000UL)
   {
-    DBG_PRN(F("Publish data "));
+    DBG_PRN(pubMillis);
+    DBG_PRN(F(" - Publish data "));
     loadConfig();
     // Generate JSON document.
     jsonDoc["mmsi"].set(config.mmsi);
@@ -501,12 +496,5 @@ void loop()
     }
 
     pubMillis = currentMillis;
-  }
-  // Every 5 minutes.
-  if (currentMillis - errResMillis >= 300000UL)
-  {
-    DBG_PRNLN(F("Resetting error count"));
-    errorCount = 0;
-    errResMillis = currentMillis;
   }
 }
