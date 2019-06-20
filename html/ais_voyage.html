@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <title>AIS Voyage!</title>
+  </head>
+  <body>
+	<nav class="navbar navbar-light bg-light">
+	  <span class="navbar-brand mb-0 h1">AIS Voyage!</span>
+	</nav>
+	<div class="container">
+		<form action="voyagereport" method="post" class="form-horizontal">
+		<div class="form-group">
+			<div class="col-6">
+				<label for="mmsi">MMSI</label>
+				<input type="number" placeholder="MMSI" name="mmsi" min="100000000" max="999999999" value="{{ payload.mmsi }}" required class="form-control"/>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="col-sm-6">
+				<label for="callsign">Callsign</label>
+				<input type="text" placeholder="Callsign" name="callsign" value="{{ payload.callsign }}" required class="form-control"/>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="col-sm-6">
+				<label for="shipname">Ship name</label>
+				<input type="text" placeholder="Ship name" name="shipname" maxlength="20" value="{{ payload.shipname }}" required class="form-control"/>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="col-sm-6">
+				<label for="destination">Destination</label>
+				<input type="text" placeholder="Destination" name="destination" maxlength="20" value="{{ payload.destination }}" class="form-control"/>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="col-sm-6">
+				<label for="eta">ETA (UTC)</label>
+				<input type="datetime-local" name="eta" value="{{ payload.currentDateTime }}" class="form-control"/>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="col-sm-6">
+				<input type="submit" value="Publish" class="btn btn-primary" />
+			</div>
+		</div>
+        <div class="span6">
+            <fieldset>
+              <legend>Legend text</legend>
+              <div class="control-group">
+                <label class="control-label" for="input01">Text input</label>
+                <div class="controls">
+                  <input type="text" class="input-xlarge" id="input01">
+                  <p class="help-block">Supporting help text</p>
+                </div>
+              </div>
+            </fieldset>
+              </form>
+    	<pre>{{ payload.statusMessage }}</pre>
+	</div>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  </body>
+</html>
