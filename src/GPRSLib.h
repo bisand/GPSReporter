@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <AltSoftSerial.h>
 #include <ArduinoJson.h>
 #include "debug.h"
 
@@ -79,7 +78,7 @@ class GPRSLib
 private:
     uint16_t _baud;
     uint16_t _timeout = TIME_OUT_READ_SERIAL;
-    AltSoftSerial _serial1;
+    Stream &_serial1;
     bool _debug;
     char *_buffer;
     char _tmpBuf[32];
@@ -113,14 +112,14 @@ public:
     bool LED_FLAG;
     uint32_t BAUDRATE;
 
-    GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin);
+    GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin, Stream &serial);
     ~GPRSLib();
 
     void flush();
     void resetAll();
     void resetGsm();
     void setSmsCallback(void (*smsCallback)(const char* tel, char *cmd, char *val));
-    void setup(uint32_t baud, bool debug = false);
+    void setup(bool debug = false);
     Result gprsGetIP(char *ipAddress, uint8_t bufferSize);
     Result gprsCloseBearer();
     bool gprsGetImei(char *buffer, uint8_t bufferSize);

@@ -1,8 +1,7 @@
-#include "GPSLib.h"
-#include <NMEAGPS.h>
-#include <GPSport.h>
 
-GPSLib::GPSLib()
+#include "GPSLib.h"
+
+GPSLib::GPSLib(Stream &serial) : _serial(serial)
 {
 }
 
@@ -10,37 +9,17 @@ GPSLib::~GPSLib()
 {
 }
 
-void GPSLib::setup(uint32_t baud, bool debug)
+void GPSLib::setup(bool debug)
 {
     _debug = debug;
-
-    gpsPort.begin(baud);
 }
 
 void GPSLib::loop()
 {
-    if (_gps.available(gpsPort))
+    while (_serial.available() > 0)
     {
-        gps_fix f = _gps.read();
-        if (f.valid.location && f.latitude() != 0 && f.longitude() != 0)
-            fix = f;
-
-        if (!_debug)
-            return;
-
-        DBG_PRN(F("Location: "));
-        if (fix.valid.location)
+        if (gps.encode(_serial.read()))
         {
-            DBG_PRNFL(fix.latitude(), 6);
-            DBG_PRN(',');
-            DBG_PRNFL(fix.longitude(), 6);
         }
-
-        DBG_PRN(F(", Altitude: "));
-        if (fix.valid.altitude)
-        {
-            DBG_PRN(fix.altitude());
-        }
-        DBG_PRNLN();
     }
 }

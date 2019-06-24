@@ -1,3 +1,5 @@
+#define SERIAL_PORT_HARDWARE_OPEN Serial1
+
 #include "debug.h"
 #include "DHT.h"
 #include "GPSLib.h"
@@ -16,10 +18,10 @@
 #define TX 9
 #define RESET 12
 
-#define DHTPIN 2      // Digital pin connected to the DHT sensor
+#define DHTPIN 33      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
-#define BAUD_SERIAL 9600
-#define BAUD_GPRS 9600
+#define BAUD_SERIAL 115200
+#define BAUD_GPRS 115200
 #define BAUD_GPS 9600
 #define FULL_DEBUG false
 #define GSM_DEBUG false
@@ -42,14 +44,14 @@ struct Config
   uint32_t checksum;
 };
 
-StaticJsonDocument<256> jsonDoc;
-char gprsBuffer[128];
+StaticJsonDocument<512> jsonDoc;
+char gprsBuffer[255];
 char tmpBuffer[8];
 char imei[16];
 char ccid[21];
 char dateTime[20];
-GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET);
-GPSLib gpsLib;
+GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, Serial2);
+GPSLib gpsLib(Serial1);
 DHT dht(DHTPIN, DHTTYPE);
 Config config;
 
@@ -60,7 +62,7 @@ Config config;
  *****************************************************/
 char *pgm(const char *s)
 {
-  const __FlashStringHelper *str = FPSTR(s);
+  const __FlashStringHelper *str = (__FlashStringHelper *)FPSTR(s);
   if (!str)
     return NULL; // return if the pointer is void
   size_t len = strlen_P((PGM_P)str) + 1;
@@ -108,7 +110,10 @@ void saveConfig()
       /* Don't checksum the checksum! */
       sum = sum + t;
     }
-    EEPROM.update(i, t);
+#if defined(ESP8266)
+    EEPROM.write(i, t);
+#else
+#endif
   }
 #if defined(ESP8266)
   EEPROM.commit();
@@ -255,7 +260,7 @@ bool sendJsonData(JsonDocument *data)
  *****************************************************/
 char *getDate(char *buffer)
 {
-  sprintf_P(buffer, PSTR("20%02d-%02d-%02dT%02d:%02d:%02d"), gpsLib.fix.dateTime.year, gpsLib.fix.dateTime.month, gpsLib.fix.dateTime.date, gpsLib.fix.dateTime.hours, gpsLib.fix.dateTime.minutes, gpsLib.fix.dateTime.seconds);
+  sprintf_P(buffer, PSTR("20%02d-%02d-%02dT%02d:%02d:%02d"), gpsLib.gps.date.year(), gpsLib.gps.date.month(), gpsLib.gps.date.day(), gpsLib.gps.time.hour(), gpsLib.gps.time.minute(), gpsLib.gps.time.second());
   return buffer;
 }
 
@@ -321,6 +326,8 @@ unsigned long errResMillis = 0;
  *****************************************************/
 void setup()
 {
+  Serial1.begin(BAUD_GPS, SERIAL_8N1, 25, 26);
+  Serial2.begin(BAUD_GPRS, SERIAL_8N1, 14, 27);
   Serial.begin(BAUD_SERIAL);
 
   Serial.println(F(""));
@@ -328,11 +335,11 @@ void setup()
 
   if (GSM_DEBUG)
   {
-    gprs.setup(BAUD_GPRS, FULL_DEBUG);
+    gprs.setup(FULL_DEBUG);
     return;
   }
 
-  gprs.setup(BAUD_GPRS, FULL_DEBUG);
+  gprs.setup(FULL_DEBUG);
   gprs.setSmsCallback(smsReceived);
   delay(5000);
 
@@ -362,7 +369,7 @@ void setup()
   gprs.smsInit();
 
   // Init GPS.
-  gpsLib.setup(BAUD_GPS, FULL_DEBUG);
+  gpsLib.setup(FULL_DEBUG);
 
   // Init Temperature sensor.
   dht.begin();
@@ -394,7 +401,7 @@ void loop()
   unsigned long currentMillis = millis();
 
   // Most of the time.
-  if (currentMillis - gpsMillis >= 100UL)
+  if (currentMillis - gpsMillis >= 10UL)
   {
     gpsLib.loop();
     gpsMillis = currentMillis;
@@ -458,11 +465,11 @@ void loop()
     jsonDoc["tmp"].set(temp);
     jsonDoc["hum"].set(humi);
     jsonDoc["hix"].set(hidx);
-    jsonDoc["lat"].set(gpsLib.fix.latitude());
-    jsonDoc["lon"].set(gpsLib.fix.longitude());
-    jsonDoc["hdg"].set(gpsLib.fix.heading()); // Should be switched out with compass data.
-    jsonDoc["cog"].set(gpsLib.fix.heading());
-    jsonDoc["sog"].set(gpsLib.fix.speed());
+    jsonDoc["lat"].set(gpsLib.gps.location.lat());
+    jsonDoc["lon"].set(gpsLib.gps.location.lng());
+    jsonDoc["hdg"].set(gpsLib.gps.course.deg()); // Should be switched out with compass data.
+    jsonDoc["cog"].set(gpsLib.gps.course.deg());
+    jsonDoc["sog"].set(gpsLib.gps.speed.knots());
     jsonDoc["utc"].set(getDate(dateTime));
     jsonDoc["qos"].set(qos);
     jsonDoc["pwr"].set(pwr);

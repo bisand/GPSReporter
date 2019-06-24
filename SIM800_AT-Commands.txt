@@ -2,6 +2,9 @@
 AT
 AT+CFUN=1
 
+# Verbose errors.
+AT+CMEE=2
+
 # PIN Status
 AT+CPIN?
 
@@ -52,5 +55,13 @@ AT+HTTPPARA="CONTENT","application/json"
 AT+HTTPDATA=20,10000
 {"mmsi":"123456789"}
 AT+HTTPACTION=1
+AT+HTTPREAD
+AT+HTTPTERM
+
+# Init and GET data https.
+AT+HTTPINIT
+AT+HTTPPARA="CID",1
+AT+HTTPPARA="URL","https://bogenhuset.no/nodered/test/"
+AT+HTTPACTION=0
 AT+HTTPREAD
 AT+HTTPTERM

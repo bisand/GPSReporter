@@ -1,17 +1,17 @@
 #include "GPRSLib.h"
 
-GPRSLib::GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin)
+GPRSLib::GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin, Stream &serial) : _serial1(serial)
 {
 	_buffer = buffer;
 	_bufferSize = bufferSize;
-	RESET_PIN = resetPin;
+	RESET_PIN = resetPin;	
 }
 
 GPRSLib::~GPRSLib()
 {
 }
 
-void GPRSLib::setup(uint32_t baud, bool debug)
+void GPRSLib::setup(bool debug)
 {
 	pinMode(RESET_PIN, OUTPUT);
 	digitalWrite(RESET_PIN, HIGH);
@@ -20,10 +20,7 @@ void GPRSLib::setup(uint32_t baud, bool debug)
 	delay(500);
 	digitalWrite(RESET_PIN, HIGH);
 
-	_baud = baud;
 	_debug = debug;
-
-	_serial1.begin(_baud);
 
 	if (LED_FLAG)
 	{
