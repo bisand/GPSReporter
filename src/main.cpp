@@ -308,6 +308,12 @@ void reconnect()
 
 float getHeading()
 {
+  // I2C scanner. Scanning ...
+  // Found address: 13 (0xD)
+  // Found address: 119 (0x77)
+  // Done.
+  // Found 2 device(s).
+
   sensors_event_t event;
   mag.getEvent(&event);
 
@@ -345,6 +351,7 @@ uint16_t pwr = 0;
 float temp = 0.0;
 float humi = 0.0;
 float hidx = 0.0;
+float heading = 0;
 
 uint32_t publishCount = 0;
 uint32_t errorCount = 0;
@@ -452,7 +459,10 @@ void loop()
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
+    // heading = getHeading();
     DBG_PRNLN(F("read"));
+    // DBG_PRN(F("Heading: "));
+    // DBG_PRNLN(heading);
 
     sensMillis = currentMillis;
   }
@@ -503,7 +513,7 @@ void loop()
     jsonDoc["hix"].set(hidx);
     jsonDoc["lat"].set(gpsLib.gps.location.lat());
     jsonDoc["lon"].set(gpsLib.gps.location.lng());
-    jsonDoc["hdg"].set(gpsLib.gps.course.deg()); // Should be switched out with compass data.
+    jsonDoc["hdg"].set(heading); // Should be switched out with compass data.
     jsonDoc["cog"].set(gpsLib.gps.course.deg());
     jsonDoc["sog"].set(gpsLib.gps.speed.knots());
     jsonDoc["utc"].set(getDate(dateTime));
