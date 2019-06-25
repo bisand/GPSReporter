@@ -86,13 +86,13 @@ char *pgm(const char *s)
 /* struct, or an EEPROM read failure) */
 void defaultConfig()
 {
-  // config.mmsi[CFG_MMSI_LEN] = "258117280";
-  // config.shipname[CFG_SHIPNAME_LEN] = "Black Pearl";
-  // config.callsign[CFG_CALLSIGN_LEN] = "LI5239";
   memset(config.callsign, '\0', 10);
   memset(config.mmsi, '\0', 16);
   memset(config.owner, '\0', 16);
   memset(config.shipname, '\0', 20);
+  strcpy_P(config.mmsi, "258117280");
+  strcpy_P(config.shipname, "Black Pearl");
+  strcpy_P(config.callsign, "LI5239");
 }
 
 /* saveConfig() writes to an EEPROM (or flash on an ESP board). */
