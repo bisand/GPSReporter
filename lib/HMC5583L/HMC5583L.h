@@ -1,3 +1,4 @@
+// Library copied from https://github.com/CFOP/L16/tree/master/Code/Libraries/HMC5583L
 #include "Arduino.h"
 #include "Wire.h"
 
