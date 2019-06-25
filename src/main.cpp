@@ -55,7 +55,8 @@ char dateTime[20];
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, Serial2);
 GPSLib gpsLib(Serial1);
 DHT dht(DHTPIN, DHTTYPE);
-HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
+// HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
+HMC5583L compass = HMC5583L(0xD);
 Config config;
 
 /*****************************************************
