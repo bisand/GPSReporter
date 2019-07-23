@@ -56,7 +56,7 @@ GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, Serial2);
 GPSLib gpsLib(Serial1);
 DHT dht(DHTPIN, DHTTYPE);
 // HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
-HMC5583L compass = HMC5583L(0xD);
+HMC5583L compass = HMC5583L(0x3D);
 Config config;
 
 /*****************************************************
@@ -437,10 +437,10 @@ void loop()
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
-    // heading = getHeading();
+    heading = getHeading();
     DBG_PRNLN(F("read"));
-    // DBG_PRN(F("Heading: "));
-    // DBG_PRNLN(heading);
+    DBG_PRN(F("Heading: "));
+    DBG_PRNLN(heading);
 
     sensMillis = currentMillis;
   }

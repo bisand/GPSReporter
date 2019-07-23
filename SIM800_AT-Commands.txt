@@ -8,6 +8,12 @@ AT+CMEE=2
 # PIN Status
 AT+CPIN?
 
+# Enter PIN
+AT+CPIN="0000"
+
+# Disable PIN
+AT+CLCK="SC",0,"0000"
+
 # Battery status
 AT+CBC
 
@@ -65,3 +71,15 @@ AT+HTTPPARA="URL","https://bogenhuset.no/nodered/test/"
 AT+HTTPACTION=0
 AT+HTTPREAD
 AT+HTTPTERM
+
+AT+CIPSTART="TCP","bogenhuset.no","443"
+AT+CIPSEND
+GET https://bogenhuset.no/nodered/test HTTP/1.1
+
+AT+CIPSTART="UDP","bogenhuset.no","1337"
+AT+CIPSEND
+{"mmsi":"123456789"}
+AT+CIPCLOSE=0
+AT+CIPSHUT
+
+POST /ais/blackpearl
