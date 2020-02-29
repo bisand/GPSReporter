@@ -1,13 +1,9 @@
-#define SERIAL_PORT_HARDWARE_OPEN Serial1
-
 #include "debug.h"
-#include "DHT.h"
-#include "GPSLib.h"
 #include "GPRSLib.h"
 #include "EEPROM.h"
 #include "ArduinoJson.h"
-#include <Wire.h>
-#include "HMC5583L.h"
+#include <HardwareSerial.h>
+HardwareSerial GsmSerial(1);
 
 #if SERIAL_TX_BUFFER_SIZE > 16
 #warning To increase available memory, you should set Hardware Serial buffers to 16. (framework-arduinoavr\cores\arduino\HardwareSerial.h)
@@ -52,11 +48,7 @@ char tmpBuffer[8];
 char imei[16];
 char ccid[21];
 char dateTime[20];
-GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, Serial2);
-GPSLib gpsLib(Serial1);
-DHT dht(DHTPIN, DHTTYPE);
-// HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
-HMC5583L compass = HMC5583L(0x3D);
+GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, GsmSerial);
 Config config;
 
 /*****************************************************
@@ -260,15 +252,6 @@ bool sendJsonData(JsonDocument *data)
 }
 
 /*****************************************************
- * Get datetime from GPS data.
- *****************************************************/
-char *getDate(char *buffer)
-{
-  sprintf_P(buffer, PSTR("%02d-%02d-%02dT%02d:%02d:%02d"), gpsLib.gps.date.year(), gpsLib.gps.date.month(), gpsLib.gps.date.day(), gpsLib.gps.time.hour(), gpsLib.gps.time.minute(), gpsLib.gps.time.second());
-  return buffer;
-}
-
-/*****************************************************
  * Connect
  *****************************************************/
 void connect()
@@ -304,18 +287,6 @@ void reconnect()
   connect();
 }
 
-float getHeading()
-{
-  // I2C scanner. Scanning ...
-  // Found address: 13 (0xD)
-  // Found address: 119 (0x77)
-  // Done.
-  // Found 2 device(s).
-
-  float currentAngle = compass.getAngle();
-  return currentAngle;
-}
-
 /*****************************************************
  * 
  * More global variables.
@@ -343,12 +314,8 @@ unsigned long errResMillis = 0;
  *****************************************************/
 void setup()
 {
-  Wire.begin();
-  compass.initialize();
-  compass.setStartingAngle();
+  GsmSerial.begin(BAUD_GPRS, SERIAL_8N1, 26, 27);
 
-  Serial1.begin(BAUD_GPS, SERIAL_8N1, 25, 26);
-  Serial2.begin(BAUD_GPRS, SERIAL_8N1, 14, 27);
   Serial.begin(BAUD_SERIAL);
 
   Serial.println(F(""));
@@ -389,11 +356,6 @@ void setup()
   // Init SMS.
   gprs.smsInit();
 
-  // Init GPS.
-  gpsLib.setup(FULL_DEBUG);
-
-  // Init Temperature sensor.
-  dht.begin();
   Serial.println(F("Started!"));
 }
 
@@ -424,7 +386,6 @@ void loop()
   // Most of the time.
   if (currentMillis - gpsMillis >= 10UL)
   {
-    gpsLib.loop();
     gpsMillis = currentMillis;
   }
   // Every 5 seconds
@@ -434,10 +395,6 @@ void loop()
     DBG_PRN(F(" - Sensors "));
     qos = gprs.signalQuality();
     pwr = gprs.batteryVoltage();
-    temp = dht.readTemperature();
-    humi = dht.readHumidity();
-    hidx = dht.computeHeatIndex(temp, humi, false);
-    heading = getHeading();
     DBG_PRNLN(F("read"));
     DBG_PRN(F("Heading: "));
     DBG_PRNLN(heading);
@@ -489,12 +446,12 @@ void loop()
     jsonDoc["tmp"].set(temp);
     jsonDoc["hum"].set(humi);
     jsonDoc["hix"].set(hidx);
-    jsonDoc["lat"].set(gpsLib.gps.location.lat());
-    jsonDoc["lon"].set(gpsLib.gps.location.lng());
+    jsonDoc["lat"].set(0);
+    jsonDoc["lon"].set(0);
     jsonDoc["hdg"].set(heading); // Should be switched out with compass data.
-    jsonDoc["cog"].set(gpsLib.gps.course.deg());
-    jsonDoc["sog"].set(gpsLib.gps.speed.knots());
-    jsonDoc["utc"].set(getDate(dateTime));
+    jsonDoc["cog"].set(0);
+    jsonDoc["sog"].set(0);
+    jsonDoc["utc"].set("");
     jsonDoc["qos"].set(qos);
     jsonDoc["pwr"].set(pwr);
     jsonDoc["pub"].set(publishCount);
