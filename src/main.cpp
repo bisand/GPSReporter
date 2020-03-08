@@ -1,5 +1,3 @@
-#define SERIAL_PORT_HARDWARE_OPEN Serial1
-
 #include "debug.h"
 #include "DHT.h"
 #include "GPSLib.h"
@@ -18,14 +16,14 @@
 
 #define RX 8
 #define TX 9
-#define RESET 12
+#define RESET 25
 
-#define DHTPIN 33     // Digital pin connected to the DHT sensor
+#define DHTPIN 18     // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD_SERIAL 115200
 #define BAUD_GPRS 115200
 #define BAUD_GPS 9600
-#define FULL_DEBUG false
+#define FULL_DEBUG true
 #define GSM_DEBUG false
 
 /*****************************************************
@@ -35,6 +33,9 @@ static const char postUrl[] PROGMEM = "https://bogenhuset.no/nodered/ais/blackpe
 static const char postContentType[] PROGMEM = "application/json";
 
 bool resetAll = false;
+
+HardwareSerial SerialGps(2);
+HardwareSerial SerialGsm(1);
 
 struct Config
 {
@@ -52,8 +53,8 @@ char tmpBuffer[8];
 char imei[16];
 char ccid[21];
 char dateTime[20];
-GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, Serial2);
-GPSLib gpsLib(Serial1);
+GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, SerialGsm);
+GPSLib gpsLib(SerialGps);
 DHT dht(DHTPIN, DHTTYPE);
 // HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
 HMC5583L compass = HMC5583L(0x3D);
@@ -347,8 +348,8 @@ void setup()
   compass.initialize();
   compass.setStartingAngle();
 
-  Serial1.begin(BAUD_GPS, SERIAL_8N1, 25, 26);
-  Serial2.begin(BAUD_GPRS, SERIAL_8N1, 14, 27);
+  SerialGps.begin(BAUD_GPS, SERIAL_8N1, 16, 17);
+  SerialGsm.begin(BAUD_GPRS, SERIAL_8N1, 32, 33);
   Serial.begin(BAUD_SERIAL);
 
   Serial.println(F(""));
