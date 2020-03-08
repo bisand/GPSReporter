@@ -57,7 +57,8 @@ GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, SerialGsm);
 GPSLib gpsLib(SerialGps);
 DHT dht(DHTPIN, DHTTYPE);
 // HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
-HMC5583L compass = HMC5583L(0x3D);
+// HMC5583L compass = HMC5583L(0x3D);
+HMC5583L compass = HMC5583L((int)13);
 Config config;
 
 /*****************************************************
@@ -327,7 +328,7 @@ uint16_t pwr = 0;
 float temp = 0.0;
 float humi = 0.0;
 float hidx = 0.0;
-float heading = 0;
+float heading = 0.0;
 
 uint32_t publishCount = 0;
 uint32_t errorCount = 0;
