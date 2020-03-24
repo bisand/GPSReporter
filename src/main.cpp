@@ -5,7 +5,7 @@
 #include "EEPROM.h"
 #include "ArduinoJson.h"
 #include <Wire.h>
-#include "HMC5583L.h"
+#include "AdminPortal.h"
 
 #if SERIAL_TX_BUFFER_SIZE > 16
 #warning To increase available memory, you should set Hardware Serial buffers to 16. (framework-arduinoavr\cores\arduino\HardwareSerial.h)
@@ -23,7 +23,7 @@
 #define BAUD_SERIAL 115200
 #define BAUD_GPRS 115200
 #define BAUD_GPS 9600
-#define FULL_DEBUG true
+#define FULL_DEBUG false
 #define GSM_DEBUG false
 
 /*****************************************************
@@ -58,7 +58,7 @@ GPSLib gpsLib(SerialGps);
 DHT dht(DHTPIN, DHTTYPE);
 // HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
 // HMC5583L compass = HMC5583L(0x3D);
-HMC5583L compass = HMC5583L((int)13);
+// HMC5583L compass = HMC5583L((int)13);
 Config config;
 
 /*****************************************************
@@ -314,7 +314,7 @@ float getHeading()
   // Done.
   // Found 2 device(s).
 
-  float currentAngle = compass.getAngle();
+  float currentAngle = 0.0;
   return currentAngle;
 }
 
@@ -329,6 +329,7 @@ float temp = 0.0;
 float humi = 0.0;
 float hidx = 0.0;
 float heading = 0.0;
+float sog = 0.0;
 
 uint32_t publishCount = 0;
 uint32_t errorCount = 0;
@@ -338,6 +339,9 @@ unsigned long sensMillis = 0;
 unsigned long smsMillis = 0;
 unsigned long pubMillis = 0;
 unsigned long errResMillis = 0;
+
+AdminPortal *adminPortal;
+
 /*****************************************************
  * 
  * SETUP
@@ -345,9 +349,41 @@ unsigned long errResMillis = 0;
  *****************************************************/
 void setup()
 {
+  uint64_t chipid = ESP.getEfuseMac();
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  String chipId = mac.substring(6);
+  String clientId = "EM-" + chipId;
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_AP);
+
+  IPAddress Ip(192, 168, 4, 1);
+  IPAddress NMask(255, 255, 255, 0);
+  WiFi.softAPConfig(Ip, Ip, NMask);
+  WiFi.softAP(clientId.c_str(), mac.c_str());
+
+  Serial.println("Chip Id:      " + chipid);
+  Serial.println("Access Point: " + clientId);
+  Serial.println("Password:     " + mac);
+  Serial.println("-----------------------------------------");
+  Serial.println("IP address:   " + WiFi.softAPIP().toString());
+  Serial.println("MAC:          " + mac);
+
+  /*use mdns for host name resolution*/
+  if (!MDNS.begin(clientId.c_str()))
+  {
+    Serial.println("Error setting up MDNS responder!");
+    while (1)
+    {
+      delay(1000);
+    }
+  }
+  Serial.println("mDNS responder started");
+
+  adminPortal = new AdminPortal();
+  adminPortal->setup();
+
   Wire.begin();
-  compass.initialize();
-  compass.setStartingAngle();
 
   SerialGps.begin(BAUD_GPS, SERIAL_8N1, 16, 17);
   SerialGsm.begin(BAUD_GPRS, SERIAL_8N1, 32, 33);
@@ -420,13 +456,16 @@ void loop()
   if (errorCount >= UINT32_MAX)
     errorCount = 0;
 
+  adminPortal->loop();
+
   // Grab current "time".
   unsigned long currentMillis = millis();
 
   // Most of the time.
-  if (currentMillis - gpsMillis >= 10UL)
+  if (currentMillis - gpsMillis >= 500UL)
   {
     gpsLib.loop();
+    sog = gpsLib.gps.speed.knots();
     gpsMillis = currentMillis;
   }
   // Every 5 seconds
@@ -439,10 +478,8 @@ void loop()
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
-    heading = getHeading();
-    DBG_PRNLN(F("read"));
-    DBG_PRN(F("Heading: "));
-    DBG_PRNLN(heading);
+
+    heading = 0.0; //getHeading();
 
     sensMillis = currentMillis;
   }
@@ -479,7 +516,8 @@ void loop()
     errResMillis = currentMillis;
   }
   // Every 15 seconds.
-  if (currentMillis - pubMillis >= 15000UL)
+  if ((sog > 2.0 && currentMillis - pubMillis >= 30000UL) || // Travelling > 2 knots, every 30 seconds
+      (sog <= 2.0 && currentMillis - pubMillis >= 180000UL)) // Travelling <= 2 knotsm every 3 minutes.
   {
     DBG_PRN(pubMillis);
     DBG_PRN(F(" - Publish data "));
