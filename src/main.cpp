@@ -37,29 +37,18 @@ bool resetAll = false;
 HardwareSerial SerialGps(2);
 HardwareSerial SerialGsm(1);
 
-struct Config
-{
-  bool active;
-  char owner[16];
-  char mmsi[16];
-  char shipname[20];
-  char callsign[10];
-  uint32_t checksum;
-};
-
 StaticJsonDocument<512> jsonDoc;
 char gprsBuffer[255];
 char tmpBuffer[8];
 char imei[16];
 char ccid[21];
 char dateTime[20];
+
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, SerialGsm);
 GPSLib gpsLib(SerialGps);
 DHT dht(DHTPIN, DHTTYPE);
-// HMC5583L compass = HMC5583L(HMC5583L_DEFAULT_ADDRESS);
-// HMC5583L compass = HMC5583L(0x3D);
-// HMC5583L compass = HMC5583L((int)13);
-Config config;
+
+AdminPortal *adminPortal;
 
 /*****************************************************
  * Retrieves a PROGMEM constant and return a pointer
@@ -86,75 +75,17 @@ char *pgm(const char *s)
 /* defaultConfig() is used when the config read from the EEPROM fails */
 /* the integrity check (which usually happens after a change to the */
 /* struct, or an EEPROM read failure) */
-void defaultConfig()
+std::map<String, String> defaultConfig()
 {
-  memset(config.callsign, '\0', 10);
-  memset(config.mmsi, '\0', 16);
-  memset(config.owner, '\0', 16);
-  memset(config.shipname, '\0', 20);
-  strcpy_P(config.mmsi, "258117280");
-  strcpy_P(config.shipname, "Black Pearl");
-  strcpy_P(config.callsign, "LI5239");
-}
-
-/* saveConfig() writes to an EEPROM (or flash on an ESP board). */
-/* Call this after making any changes to the setting variable */
-/* The checksum will be calculated as the data is written */
-void saveConfig()
-{
-  unsigned int sum = 0;
-  unsigned char t;
-  for (unsigned int i = 0; i < sizeof(Config); i++)
-  {
-    if (i == sizeof(config) - sizeof(config.checksum))
-    {
-      config.checksum = sum;
-    }
-    t = *((unsigned char *)&config + i);
-    if (i < sizeof(config) - sizeof(config.checksum))
-    {
-      /* Don't checksum the checksum! */
-      sum = sum + t;
-    }
-#if defined(ESP8266)
-    EEPROM.write(i, t);
-#else
-#endif
-  }
-#if defined(ESP8266)
-  EEPROM.commit();
-#endif
-}
-
-/* loadConfig() populates the settings variable, so call this before */
-/* attempting to use settings. If the EEPROM read fails, then */
-/* the defaultConfig() function will be called, so settings are always */
-/* populated, one way or another. */
-void loadConfig()
-{
-  config.checksum = 0;
-  unsigned int sum = 0;
-  unsigned char t;
-  for (unsigned int i = 0; i < sizeof(config); i++)
-  {
-    t = (unsigned char)EEPROM.read(i);
-    *((char *)&config + i) = t;
-    if (i < sizeof(config) - sizeof(config.checksum))
-    {
-      /* Don't checksum the checksum! */
-      sum = sum + t;
-    }
-  }
-  /* Now check the data we just read */
-  if (config.checksum != sum)
-  {
-    DBG_PRN(F("Saved config invalid - using defaults "));
-    DBG_PRN(config.checksum);
-    DBG_PRN(F(" <> "));
-    DBG_PRNLN(sum);
-    defaultConfig();
-    saveConfig();
-  }
+  std::map<String, String> config;
+  config["active"] = "true";
+  config["owner"] = "";
+  config["mmsi"] = "258117280";
+  config["callsign"] = "LI5239";
+  config["shipname"] = "Black Pearl";
+  adminPortal->deleteConfig();
+  adminPortal->saveConfig(config);
+  return config;
 }
 
 /*****************************************************
@@ -167,10 +98,12 @@ void smsReceived(const char *tel, char *cmd, char *val)
   DBG_PRNLN(cmd);
   DBG_PRN(F("Value: "));
   DBG_PRNLN(val);
-  loadConfig();
-  if (strlen(config.owner) < 1)
+
+  std::map<String, String> config = adminPortal->loadConfig();
+  if (config["owner"] == NULL || config["owner"].length() < 1)
   {
-    strcpy(config.owner, tel);
+    config["owner"] = tel;
+    adminPortal->saveConfig(config);
   }
 
   if (strcmp_P(cmd, PSTR("resetall")) == 0)
@@ -181,14 +114,14 @@ void smsReceived(const char *tel, char *cmd, char *val)
     gprs.smsSend(tel, sms);
     free(sms);
 
-    defaultConfig();
-    strcpy(config.owner, tel);
-    saveConfig();
+    config = defaultConfig();
+    config["owner"] = tel;
+    adminPortal->saveConfig(config);
     delay(1000);
     resetAll = true;
   }
 
-  if (strcmp(config.owner, tel) != 0)
+  if (strcmp(config["owner"].c_str(), tel) != 0)
     return;
 
   if (strcmp_P(cmd, PSTR("resetgsm")) == 0)
@@ -208,25 +141,25 @@ void smsReceived(const char *tel, char *cmd, char *val)
   }
   else if (strcmp_P(cmd, PSTR("mmsi")) == 0)
   {
-    strncpy(config.mmsi, val, sizeof(config.mmsi));
-    saveConfig();
+    config["mmsi"] = val;
+    adminPortal->saveConfig(config);
     char *sms = pgm(PSTR("MMSI successfully stored."));
     gprs.smsSend(tel, sms);
     free(sms);
   }
   else if (strcmp_P(cmd, PSTR("callsign")) == 0)
   {
-    strncpy(config.callsign, val, sizeof(config.callsign));
-    saveConfig();
+    config["callsign"] = val;
+    adminPortal->saveConfig(config);
     char *sms = pgm(PSTR("Callsign successfully stored."));
     gprs.smsSend(tel, sms);
     free(sms);
   }
   else if (strcmp_P(cmd, PSTR("shipname")) == 0)
   {
-    strncpy(config.shipname, val, sizeof(config.shipname));
-    saveConfig();
-    char *sms = pgm(PSTR("MMSI successfully stored."));
+    config["shipname"] = val;
+    adminPortal->saveConfig(config);
+    char *sms = pgm(PSTR("Ship name successfully stored."));
     gprs.smsSend(tel, sms);
     free(sms);
   }
@@ -339,8 +272,6 @@ unsigned long sensMillis = 0;
 unsigned long smsMillis = 0;
 unsigned long pubMillis = 0;
 unsigned long errResMillis = 0;
-
-AdminPortal *adminPortal;
 
 /*****************************************************
  * 
@@ -472,7 +403,7 @@ void loop()
   if (currentMillis - sensMillis >= 5000UL)
   {
     DBG_PRN(sensMillis);
-    DBG_PRN(F(" - Sensors "));
+    DBG_PRNLN(F(" - Sensors "));
     qos = gprs.signalQuality();
     pwr = gprs.batteryVoltage();
     temp = dht.readTemperature();
@@ -521,11 +452,13 @@ void loop()
   {
     DBG_PRN(pubMillis);
     DBG_PRN(F(" - Publish data "));
-    loadConfig();
+
+    std::map<String, String> config = adminPortal->loadConfig();
+
     // Generate JSON document.
-    jsonDoc["mmsi"].set(config.mmsi);
-    jsonDoc["cs"].set(config.callsign);
-    jsonDoc["sn"].set(config.shipname);
+    jsonDoc["mmsi"].set(config["mmsi"]);
+    jsonDoc["cs"].set(config["callsign"]);
+    jsonDoc["sn"].set(config["shipname"]);
     jsonDoc["tmp"].set(temp);
     jsonDoc["hum"].set(humi);
     jsonDoc["hix"].set(hidx);
@@ -535,6 +468,7 @@ void loop()
     jsonDoc["cog"].set(gpsLib.gps.course.deg());
     jsonDoc["sog"].set(gpsLib.gps.speed.knots());
     jsonDoc["utc"].set(getDate(dateTime));
+    jsonDoc["mem"].set(ESP.getFreeHeap());
     jsonDoc["qos"].set(qos);
     jsonDoc["pwr"].set(pwr);
     jsonDoc["pub"].set(publishCount);
