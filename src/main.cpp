@@ -72,22 +72,6 @@ char *pgm(const char *s)
   return (char *)memcpy_P(m, (PGM_P)str, len);
 }
 
-/* defaultConfig() is used when the config read from the EEPROM fails */
-/* the integrity check (which usually happens after a change to the */
-/* struct, or an EEPROM read failure) */
-std::map<String, String> defaultConfig()
-{
-  std::map<String, String> config;
-  config["active"] = "true";
-  config["owner"] = "";
-  config["mmsi"] = "258117280";
-  config["callsign"] = "LI5239";
-  config["shipname"] = "Black Pearl";
-  adminPortal->deleteConfig();
-  adminPortal->saveConfig(config);
-  return config;
-}
-
 /*****************************************************
  * SMS received callback
  *****************************************************/
@@ -114,9 +98,13 @@ void smsReceived(const char *tel, char *cmd, char *val)
     gprs.smsSend(tel, sms);
     free(sms);
 
-    config = defaultConfig();
-    config["owner"] = tel;
+    config["owner"] = pgm(PSTR("+4798802600"));
+    config["active"] = pgm(PSTR("true"));
+    config["mmsi"] = pgm(PSTR("258117280"));
+    config["callsign"] = pgm(PSTR("LI5239"));
+    config["shipname"] = pgm(PSTR("Black Pearl"));
     adminPortal->saveConfig(config);
+
     delay(1000);
     resetAll = true;
   }
@@ -283,8 +271,8 @@ void setup()
   uint64_t chipid = ESP.getEfuseMac();
   String mac = WiFi.macAddress();
   mac.replace(":", "");
-  String chipId = mac.substring(6);
-  String clientId = "EM-" + chipId;
+  String chipId = mac.substring(4);
+  String clientId = "SPARROW-" + chipId;
   WiFi.persistent(false);
   WiFi.mode(WIFI_AP);
 
@@ -292,13 +280,6 @@ void setup()
   IPAddress NMask(255, 255, 255, 0);
   WiFi.softAPConfig(Ip, Ip, NMask);
   WiFi.softAP(clientId.c_str(), mac.c_str());
-
-  Serial.println("Chip Id:      " + chipid);
-  Serial.println("Access Point: " + clientId);
-  Serial.println("Password:     " + mac);
-  Serial.println("-----------------------------------------");
-  Serial.println("IP address:   " + WiFi.softAPIP().toString());
-  Serial.println("MAC:          " + mac);
 
   /*use mdns for host name resolution*/
   if (!MDNS.begin(clientId.c_str()))
@@ -364,6 +345,27 @@ void setup()
   // Init Temperature sensor.
   dht.begin();
   Serial.println(F("Started!"));
+
+  Serial.println("Chip Id:      " + chipid);
+  Serial.println("Access Point: " + clientId);
+  Serial.println("Password:     " + mac);
+  Serial.println("-----------------------------------------");
+  Serial.println("IP address:   " + WiFi.softAPIP().toString());
+  Serial.println("MAC:          " + mac);
+
+  std::map<String, String> config = adminPortal->loadConfig();
+  // Dynamically map values.
+  std::map<String, String>::iterator it;
+  for (it = config.begin(); it != config.end(); it++)
+  {
+    String valueType = "text";
+    DBG_PRN(it->first);
+    DBG_PRN(" : ");
+    DBG_PRNLN(it->second);
+    if (it->first.equalsIgnoreCase("active") || it->first.equalsIgnoreCase("debug"))
+      valueType = "checkbox";
+    adminPortal->addConfigFormElement(String(it->first), String(it->first), String("Boat data"), String(it->second), valueType);
+  }
 }
 
 /*****************************************************
@@ -454,6 +456,23 @@ void loop()
     DBG_PRN(F(" - Publish data "));
 
     std::map<String, String> config = adminPortal->loadConfig();
+    std::stringstream act(config["active"].c_str());
+    std::stringstream dbg(config["debug"].c_str());
+    bool isActive;
+    bool isDebug;
+    if (!(act >> std::boolalpha >> isActive))
+    {
+      DBG_PRNLN(F("Error converting active to bool."));
+    }
+    if (!isActive)
+    {
+      DBG_PRNLN(F("AIS is not active. Will not publish."));
+      return;
+    }
+    if (!(dbg >> std::boolalpha >> isDebug))
+    {
+      DBG_PRNLN(F("Error converting debug to bool."));
+    }
 
     // Generate JSON document.
     jsonDoc["mmsi"].set(config["mmsi"]);
@@ -468,12 +487,19 @@ void loop()
     jsonDoc["cog"].set(gpsLib.gps.course.deg());
     jsonDoc["sog"].set(gpsLib.gps.speed.knots());
     jsonDoc["utc"].set(getDate(dateTime));
-    jsonDoc["mem"].set(ESP.getFreeHeap());
-    jsonDoc["qos"].set(qos);
-    jsonDoc["pwr"].set(pwr);
-    jsonDoc["pub"].set(publishCount);
-    jsonDoc["err"].set(errorCount);
-    jsonDoc["ups"].set(currentMillis / 1000);
+    jsonDoc["dima"].set(config["dima"]);
+    jsonDoc["dimb"].set(config["dimb"]);
+    jsonDoc["dimc"].set(config["dimc"]);
+    jsonDoc["dimd"].set(config["dimd"]);
+    if (isDebug)
+    {
+      jsonDoc["mem"].set(ESP.getFreeHeap());
+      jsonDoc["qos"].set(qos);
+      jsonDoc["pwr"].set(pwr);
+      jsonDoc["pub"].set(publishCount);
+      jsonDoc["err"].set(errorCount);
+      jsonDoc["ups"].set(currentMillis / 1000);
+    }
     bool res = sendJsonData(&jsonDoc);
     jsonDoc.clear();
 

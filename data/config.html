@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Engine Monitor</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+    <nav class="nav" tabindex="-1" onclick="this.focus()">
+        <div class="container">
+            <a class="pagename current" href="index.html" style="white-space: nowrap;">Engine Monitor</a>
+            <a href="/">Home</a>
+            <a href="/docs">Docs</a>
+            <a href="#">Configuration</a>
+            <a href="/monitor">Debug monitor</a>
+            <a href="/upgrade">Update Firmware</a>
+        </div>
+    </nav>
+    <button class="btn-close btn btn-sm">×</button>
+    <div class="container">
+        <h2>Configuration</h2>
+        <form method="POST">
+            %CONFIG_FORM%
+            <p>
+                <input type="submit" value="Save" class="btn btn-sm btn-a" />
+            </p>
+        </form>
+    </div>
+</body>
+
+</html>
