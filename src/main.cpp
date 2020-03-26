@@ -98,11 +98,16 @@ void smsReceived(const char *tel, char *cmd, char *val)
     gprs.smsSend(tel, sms);
     free(sms);
 
-    config["owner"] = pgm(PSTR("+4798802600"));
-    config["active"] = pgm(PSTR("true"));
-    config["mmsi"] = pgm(PSTR("258117280"));
-    config["callsign"] = pgm(PSTR("LI5239"));
-    config["shipname"] = pgm(PSTR("Black Pearl"));
+    config["owner"] = String("");
+    config["active"] = String("true");
+    config["debug"] = String("false");
+    config["mmsi"] = String("");
+    config["callsign"] = String("");
+    config["shipname"] = String("");
+    config["dima"] = String("5");
+    config["dimb"] = String("5");
+    config["dimc"] = String("2");
+    config["dimd"] = String("2");
     adminPortal->saveConfig(config);
 
     delay(1000);
@@ -239,6 +244,36 @@ float getHeading()
   return currentAngle;
 }
 
+void fillConfigFormElements()
+{
+  // Dynamically map values for config form.
+  adminPortal->clearConfigElements();
+  std::map<String, String> config = adminPortal->loadConfig();
+  
+  std::map<String, String>::iterator it;
+  for (it = config.begin(); it != config.end(); it++)
+  {
+    String valueType = "text";
+    DBG_PRN(it->first);
+    DBG_PRN(" : ");
+    DBG_PRNLN(it->second);
+    if (it->first.equalsIgnoreCase("active") || it->first.equalsIgnoreCase("debug"))
+      valueType = "checkbox";
+    //adminPortal->addConfigFormElement(String(it->first), String(it->first), String("Boat data"), String(it->second), valueType);
+  }
+
+  // Statically map values for Config form provides more control.
+  adminPortal->addConfigFormElement(String("owner"), String("AIS Phone number:"), String("Boat data"), config["owner"], String("text"));
+  adminPortal->addConfigFormElement(String("mmsi"), String("MMSI:"), String("Boat data"), config["mmsi"], String("number"));
+  adminPortal->addConfigFormElement(String("callsign"), String("Callsign:"), String("Boat data"), config["callsign"], String("text"));
+  adminPortal->addConfigFormElement(String("shipname"), String("Ship name:"), String("Boat data"), config["shipname"], String("text"));
+  adminPortal->addConfigFormElement(String("dima"), String("Distance from AIS to bow:"), String("Boat data"), config["dima"], String("number"));
+  adminPortal->addConfigFormElement(String("dimb"), String("Distance from AIS to stern:"), String("Boat data"), config["dimb"], String("number"));
+  adminPortal->addConfigFormElement(String("dimc"), String("Distance from AIS to port:"), String("Boat data"), config["dimc"], String("number"));
+  adminPortal->addConfigFormElement(String("dimd"), String("Distance from AIS to starboard:"), String("Boat data"), config["dimd"], String("number"));
+  adminPortal->addConfigFormElement(String("active"), String("Active:"), String("Administration"), config["active"], String("checkbox"));
+  adminPortal->addConfigFormElement(String("debug"), String("Debug:"), String("Administration"), config["debug"], String("checkbox"));
+}
 /*****************************************************
  * 
  * More global variables.
@@ -353,19 +388,7 @@ void setup()
   Serial.println("IP address:   " + WiFi.softAPIP().toString());
   Serial.println("MAC:          " + mac);
 
-  std::map<String, String> config = adminPortal->loadConfig();
-  // Dynamically map values.
-  std::map<String, String>::iterator it;
-  for (it = config.begin(); it != config.end(); it++)
-  {
-    String valueType = "text";
-    DBG_PRN(it->first);
-    DBG_PRN(" : ");
-    DBG_PRNLN(it->second);
-    if (it->first.equalsIgnoreCase("active") || it->first.equalsIgnoreCase("debug"))
-      valueType = "checkbox";
-    adminPortal->addConfigFormElement(String(it->first), String(it->first), String("Boat data"), String(it->second), valueType);
-  }
+  adminPortal->setfillConfigElementsCallback(fillConfigFormElements);
 }
 
 /*****************************************************
@@ -467,6 +490,7 @@ void loop()
     if (!isActive)
     {
       DBG_PRNLN(F("AIS is not active. Will not publish."));
+      pubMillis = currentMillis;
       return;
     }
     if (!(dbg >> std::boolalpha >> isDebug))
