@@ -14,11 +14,11 @@ GPRSLib::~GPRSLib()
 void GPRSLib::setup(bool debug)
 {
 	pinMode(RESET_PIN, OUTPUT);
-	digitalWrite(RESET_PIN, HIGH);
-	delay(500);
 	digitalWrite(RESET_PIN, LOW);
 	delay(500);
 	digitalWrite(RESET_PIN, HIGH);
+	delay(500);
+	digitalWrite(RESET_PIN, LOW);
 
 	_debug = debug;
 
@@ -612,9 +612,9 @@ void GPRSLib::resetAll()
 
 void GPRSLib::resetGsm()
 {
-	digitalWrite(RESET_PIN, LOW);
-	delay(500);
 	digitalWrite(RESET_PIN, HIGH);
+	delay(500);
+	digitalWrite(RESET_PIN, LOW);
 }
 
 void GPRSLib::flush()
