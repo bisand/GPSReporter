@@ -249,7 +249,7 @@ void fillConfigFormElements()
   // Dynamically map values for config form.
   adminPortal->clearConfigElements();
   std::map<String, String> config = adminPortal->loadConfig();
-  
+
   std::map<String, String>::iterator it;
   for (it = config.begin(); it != config.end(); it++)
   {
@@ -286,6 +286,9 @@ float humi = 0.0;
 float hidx = 0.0;
 float heading = 0.0;
 float sog = 0.0;
+float cog = 0.0;
+float lat = 0.0;
+float lon = 0.0;
 
 uint32_t publishCount = 0;
 uint32_t errorCount = 0;
@@ -303,10 +306,11 @@ unsigned long errResMillis = 0;
  *****************************************************/
 void setup()
 {
-  uint64_t chipid = ESP.getEfuseMac();
+  Serial.begin(BAUD_SERIAL);
+
   String mac = WiFi.macAddress();
   mac.replace(":", "");
-  String chipId = mac.substring(4);
+  String chipId = mac.substring(9);
   String clientId = "SPARROW-" + chipId;
   WiFi.persistent(false);
   WiFi.mode(WIFI_AP);
@@ -327,6 +331,13 @@ void setup()
   }
   Serial.println("mDNS responder started");
 
+  Serial.println("Access Point: " + clientId);
+  Serial.println("Password:     " + mac);
+  Serial.println("-----------------------------------------");
+  Serial.println("IP address:   " + WiFi.softAPIP().toString());
+  Serial.println("MAC:          " + mac);
+  Serial.flush();
+
   adminPortal = new AdminPortal();
   adminPortal->setup();
 
@@ -334,7 +345,6 @@ void setup()
 
   SerialGps.begin(BAUD_GPS, SERIAL_8N1, 16, 17);
   SerialGsm.begin(BAUD_GPRS, SERIAL_8N1, 32, 33);
-  Serial.begin(BAUD_SERIAL);
 
   Serial.println(F(""));
   Serial.print(F("Starting..."));
@@ -381,13 +391,6 @@ void setup()
   dht.begin();
   Serial.println(F("Started!"));
 
-  Serial.println("Chip Id:      " + chipid);
-  Serial.println("Access Point: " + clientId);
-  Serial.println("Password:     " + mac);
-  Serial.println("-----------------------------------------");
-  Serial.println("IP address:   " + WiFi.softAPIP().toString());
-  Serial.println("MAC:          " + mac);
-
   adminPortal->setfillConfigElementsCallback(fillConfigFormElements);
 }
 
@@ -418,7 +421,7 @@ void loop()
   unsigned long currentMillis = millis();
 
   // Most of the time.
-  if (currentMillis - gpsMillis >= 500UL)
+  if (currentMillis - gpsMillis >= 1000UL)
   {
     gpsLib.loop();
     sog = gpsLib.gps.speed.knots();
@@ -436,6 +439,27 @@ void loop()
     hidx = dht.computeHeatIndex(temp, humi, false);
 
     heading = 0.0; //getHeading();
+    lat = gpsLib.gps.location.lat();
+    lon = gpsLib.gps.location.lng();
+    cog = gpsLib.gps.course.deg();
+
+    unsigned int ram = ESP.getFreeHeap();
+    char buf[32];
+    sprintf(buf, "%.2f", sog);
+    adminPortal->log("sog", buf);
+    sprintf(buf, "%.2f", cog);
+    adminPortal->log("cog", buf);
+    sprintf(buf, "%.5f", lat);
+    adminPortal->log("lat", buf);
+    sprintf(buf, "%.5f", lon);
+    adminPortal->log("lon", buf);
+    sprintf(buf, "%.2f", temp);
+    adminPortal->log("temp", buf);
+    sprintf(buf, "%.2f", humi);
+    adminPortal->log("hum", buf);
+    sprintf(buf, "%d", ram);
+    adminPortal->log("ram", buf);
+    adminPortal->log("utc", getDate(dateTime));
 
     sensMillis = currentMillis;
   }
@@ -471,9 +495,13 @@ void loop()
     errorCount = 0;
     errResMillis = currentMillis;
   }
-  // Every 15 seconds.
-  if ((sog > 2.0 && currentMillis - pubMillis >= 30000UL) || // Travelling > 2 knots, every 30 seconds
-      (sog <= 2.0 && currentMillis - pubMillis >= 180000UL)) // Travelling <= 2 knotsm every 3 minutes.
+  // Every X seconds depending on speed.
+  if (
+      (sog < 2.0 && ((currentMillis - pubMillis) >= 180000UL)) ||                    // Travelling <= 2 knotsm every 3 minutes.
+      ((sog >= 2.0) && (sog < 14.0) && ((currentMillis - pubMillis) >= 30000UL)) ||  // Travelling between 2 and 14 knots, every 30 seconds.
+      ((sog >= 14.0) && (sog < 23.0) && ((currentMillis - pubMillis) >= 15000UL)) || // Travelling between 14 and 23 knots, every 15 seconds.
+      ((sog >= 23.0) && ((currentMillis - pubMillis) >= 5000UL))                     // Travelling over 23 knots, every 15 seconds.
+  )
   {
     DBG_PRN(pubMillis);
     DBG_PRN(F(" - Publish data "));
@@ -505,11 +533,11 @@ void loop()
     jsonDoc["tmp"].set(temp);
     jsonDoc["hum"].set(humi);
     jsonDoc["hix"].set(hidx);
-    jsonDoc["lat"].set(gpsLib.gps.location.lat());
-    jsonDoc["lon"].set(gpsLib.gps.location.lng());
+    jsonDoc["lat"].set(lat);
+    jsonDoc["lon"].set(lon);
     jsonDoc["hdg"].set(heading); // Should be switched out with compass data.
-    jsonDoc["cog"].set(gpsLib.gps.course.deg());
-    jsonDoc["sog"].set(gpsLib.gps.speed.knots());
+    jsonDoc["cog"].set(cog);
+    jsonDoc["sog"].set(sog);
     jsonDoc["utc"].set(getDate(dateTime));
     jsonDoc["dima"].set(config["dima"]);
     jsonDoc["dimb"].set(config["dimb"]);

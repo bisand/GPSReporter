@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Engine Monitor</title>
+    <title>Sparrow V-AIS</title>
 
     <link href="style.css" rel="stylesheet" type="text/css">
 </head>
+
 <body>
     <nav class="nav" tabindex="-1" onclick="this.focus()">
         <div class="container">
-            <a class="pagename current" href="index.html" style="white-space: nowrap;">Engine Monitor</a>
+            <a class="pagename current" href="index.html" style="white-space: nowrap;">Sparrow V-AIS</a>
             <a href="#">Home</a>
             <a href="/docs">Docs</a>
             <a href="/config">Configuration</a>
@@ -22,23 +24,36 @@
     <button class="btn-close btn btn-sm">×</button>
     <div class="container">
         <div class="hero">
-            <h2>Welcome to EngineMonitor</h2>
-            <p>The purpose of this product is to be able to monitor a boat engine</p>
+            <h2>Welcome to Sparrow</h2>
+            <p>Sparrow V-AIS is a so called virtual AIS that reports your position, speed and course by transmitting AIS
+                messages to MarineTraffic. The AIS messages are only visibe through the MarineTraffic interface, and not
+                visible to any vessels nearby using regular AIS.</p>
+            <p>Reporting interval is based on Class B AIS equipment usng SOTDMA protocol (SO). Slower than 2 knots, every 3 minutes. 2 knots or
+                faster, at last every 30 seconds. Please read documentation for more information.</p>
         </div>
         <div class="row">
             <div class="col c4">
-                <h3>Documentation</h3><p>Here you can view the current documentation for this product</p><a href="/docs" class="btn btn-sm btn-b">Documentation</a>
+                <h3>Documentation</h3>
+                <p>Here you can view the current documentation for this product</p><a href="/docs"
+                    class="btn btn-sm btn-b">Documentation</a>
             </div>
             <div class="col c4">
-                <h3>Configuration</h3><p>Configure parameters for connected sensors. You can also enable and disable functions.</p><a href="/config" class="btn btn-sm btn-a">Configuration</a>
+                <h3>Configuration</h3>
+                <p>Configure parameters for connected sensors. You can also enable and disable functions.</p><a
+                    href="/config" class="btn btn-sm btn-a">Configuration</a>
             </div>
             <div class="col c4">
-                <h3>Monitor</h3><p>Monitor debug data in realtime. Enable and disable debug.</p><a href="/monitor" class="btn btn-sm">Monitor</a>
+                <h3>Monitor</h3>
+                <p>Monitor debug data in realtime. Enable and disable debug.</p><a href="/monitor"
+                    class="btn btn-sm">Monitor</a>
             </div>
             <div class="col c4">
-                <h3>Firmware Upgrade</h3><p>Upgrade formware. Use this with caution!!</p><a href="/upgrade" class="btn btn-sm btn-c">Firmware Upgrade</a>
+                <h3>Firmware Upgrade</h3>
+                <p>Upgrade formware. Use this with caution!!</p><a href="/upgrade" class="btn btn-sm btn-c">Firmware
+                    Upgrade</a>
             </div>
         </div>
     </div>
 </body>
+
 </html>

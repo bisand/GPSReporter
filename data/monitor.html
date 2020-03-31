@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Engine Monitor</title>
+    <title>Sparrow V-AIS</title>
 
     <link href="style.css" rel="stylesheet" type="text/css">
 </head>
@@ -13,7 +13,7 @@
 <body>
     <nav class="nav" tabindex="-1" onclick="this.focus()">
         <div class="container">
-            <a class="pagename current" href="index.html" style="white-space: nowrap;">Engine Monitor</a>
+            <a class="pagename current" href="index.html" style="white-space: nowrap;">Sparrow V-AIS</a>
             <a href="/">Home</a>
             <a href="/docs">Docs</a>
             <a href="/config">Configuration</a>
@@ -26,15 +26,21 @@
         <div class="header">
             <h2>Debug monitor</h2>
             <p>
-                <label for="txtPulses">Pulses</label>
-                <input type="text" id="txtPulses" />
-                <label for="txtPulses">Flow</label>
-                <input type="text" id="txtFlow" />
-                <label for="txtPulses">Elapsed In</label>
-                <input type="text" id="txtElapsedIn" />
-                <label for="txtPulses">Elapsed Out</label>
-                <input type="text" id="txtElapsedOut" />
-                <label for="txtPulses">Ram</label>
+                <label for="txtLat">Latitude</label>
+                <input type="text" id="txtLat" />
+                <label for="txtLon">Longitude</label>
+                <input type="text" id="txtLon" />
+                <label for="txtSOG">Speed Over Ground (SOG)</label>
+                <input type="text" id="txtSOG" />
+                <label for="txtCOG">Course Over Ground (COG)</label>
+                <input type="text" id="txtCOG" />
+                <label for="txtTemp">Temperature</label>
+                <input type="text" id="txtTemp" />
+                <label for="txtHum">Humidity</label>
+                <input type="text" id="txtHum" />
+                <label for="txtUTC">DateTime (UTC)</label>
+                <input type="text" id="txtUTC" />
+                <label for="txtRam">Memory</label>
                 <input type="text" id="txtRam" />
             </p>
             <p>
@@ -59,20 +65,32 @@
                 newElement.textContent = e.data;
                 eventList.appendChild(newElement)
             }, false);
-            source.addEventListener('pulses', function (e) {
-                var newElement = document.querySelector("#txtPulses");
+            source.addEventListener('lat', function (e) {
+                var newElement = document.querySelector("#txtLat");
                 newElement.value = e.data;
             }, false);
-            source.addEventListener('flow', function (e) {
-                var newElement = document.querySelector("#txtFlow");
+            source.addEventListener('lon', function (e) {
+                var newElement = document.querySelector("#txtLon");
                 newElement.value = e.data;
             }, false);
-            source.addEventListener('elapsedIn', function (e) {
-                var newElement = document.querySelector("#txtElapsedIn");
+            source.addEventListener('sog', function (e) {
+                var newElement = document.querySelector("#txtSOG");
                 newElement.value = e.data;
             }, false);
-            source.addEventListener('elapsedOut', function (e) {
-                var newElement = document.querySelector("#txtElapsedOut");
+            source.addEventListener('cog', function (e) {
+                var newElement = document.querySelector("#txtCOG");
+                newElement.value = e.data;
+            }, false);
+            source.addEventListener('temp', function (e) {
+                var newElement = document.querySelector("#txtTemp");
+                newElement.value = e.data;
+            }, false);
+            source.addEventListener('hum', function (e) {
+                var newElement = document.querySelector("#txtHum");
+                newElement.value = e.data;
+            }, false);
+            source.addEventListener('utc', function (e) {
+                var newElement = document.querySelector("#txtUTC");
                 newElement.value = e.data;
             }, false);
             source.addEventListener('ram', function (e) {
