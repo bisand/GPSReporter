@@ -4,7 +4,7 @@ GPRSLib::GPRSLib(char *buffer, uint16_t bufferSize, uint8_t resetPin, Stream &se
 {
 	_buffer = buffer;
 	_bufferSize = bufferSize;
-	RESET_PIN = resetPin;	
+	RESET_PIN = resetPin;
 }
 
 GPRSLib::~GPRSLib()
@@ -441,6 +441,19 @@ uint8_t GPRSLib::batteryPercent()
 	return 0;
 }
 
+bool GPRSLib::setSleepMode(bool sleep)
+{
+	if (sleep)
+		_writeSerial(F("AAT+CSCLK=2\r\n"));
+	else
+		_writeSerial(F("AAT+CSCLK=0\r\n"));
+
+	if (_readSerialUntilOkOrError(_buffer, _bufferSize) == 1)
+		return true;
+
+	return false;
+}
+
 Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *contentType, bool read, char *output, uint16_t outputSize)
 {
 	_clearBuffer(output, outputSize);
@@ -502,36 +515,50 @@ Result GPRSLib::httpPostJson(const char *url, JsonDocument *data, const char *co
 	if (res != FOUND_EITHER_TEXT)
 		return ERROR_HTTP_POST;
 
-	delay(1000);
+	//delay(1000);
 	int idx = 0; //_readSerialUntilCrLf(_buffer, _bufferSize);
 	unsigned long timerStart, timerEnd;
 	unsigned long timeout = 10000;
+	bool timedOut = false;
 	timerStart = millis();
 	do
 	{
 		// TODO Remember timeout
 		idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
 		timerEnd = millis();
-		if (timerEnd - timerStart > timeout)
+		if (timerEnd - timerStart > timeout){
+			timedOut = true;
 			break;
+		}
 	} while (strstr(_buffer, "+HTTPACTION:") == NULL);
-	
-	// idx = _readSerialUntilCrLf(_buffer, _bufferSize, idx);
+
+	if(timedOut){
+		_writeSerial(F("AT+HTTPTERM\r\n"));
+		_readSerialUntilOkOrError(_buffer, _bufferSize);
+		return SUCCESS;
+	}
 
 	_getResponseParams(_buffer, "+HTTPACTION:", 1, _tmpBuf, sizeof(_tmpBuf));
 	if (atoi(_tmpBuf) != 1)
 	{
-		DBG_PRN(F("ERROR: +HTTPACTION: ")); //return ERROR_HTTP_POST;
+		DBG_PRN(F("ERROR: +HTTPACTION 1: ")); //return ERROR_HTTP_POST;
 		DBG_PRNLN(_tmpBuf);
+		DBG_PRN(F("Buffer: ")); //return ERROR_HTTP_POST;
+		DBG_PRNLN(_buffer);
+		DBG_PRN(F("httpResult: ")); //return ERROR_HTTP_POST;
 		return ERROR_HTTP_POST;
 	}
-	_getResponseParams(_buffer, "+HTTPACTION:", 2, _tmpBuf, sizeof(_tmpBuf));
-	int httpResult = atoi(_tmpBuf);
+	char httpCodeBuf[3];
+	_getResponseParams(_buffer, "+HTTPACTION:", 2, httpCodeBuf, 3);
+	int httpResult = atoi(httpCodeBuf);
 	if (httpResult < 200 || httpResult >= 300)
 	{
-		DBG_PRN(F("ERROR: +HTTPACTION: ")); //return ERROR_HTTP_POST;
-		DBG_PRNLN(_tmpBuf);
+		DBG_PRN(F("ERROR: +HTTPACTION 2: ")); //return ERROR_HTTP_POST;
+		DBG_PRNLN(httpCodeBuf);
+		DBG_PRN(F("Buffer: ")); //return ERROR_HTTP_POST;
 		DBG_PRNLN(_buffer);
+		DBG_PRN(F("httpResult: ")); //return ERROR_HTTP_POST;
+		DBG_PRNLN(httpResult);
 		return ERROR_HTTP_POST;
 	}
 	if (read)

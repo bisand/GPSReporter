@@ -151,4 +151,5 @@ public:
     bool getValue(char *buffer, char *cmd, char *output, uint16_t outputLength);
     bool getSmsCmd(char *buffer, char *output, uint16_t outputLength);
     bool getSmsVal(char *buffer, char *output, uint16_t outputLength);
+    bool setSleepMode(bool active);
 };

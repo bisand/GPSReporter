@@ -21,7 +21,7 @@
 #define DHTPIN 18     // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
 #define BAUD_SERIAL 115200
-#define BAUD_GPRS 115200
+#define BAUD_GPRS 9600
 #define BAUD_GPS 9600
 #define FULL_DEBUG false
 #define GSM_DEBUG false
@@ -298,6 +298,10 @@ unsigned long sensMillis = 0;
 unsigned long smsMillis = 0;
 unsigned long pubMillis = 0;
 unsigned long errResMillis = 0;
+unsigned long sleepMillis = 0;
+unsigned long wifiMillis = 0;
+
+bool wifiEnabled = true;
 
 /*****************************************************
  * 
@@ -312,6 +316,7 @@ void setup()
   mac.replace(":", "");
   String chipId = mac.substring(9);
   String clientId = "SPARROW-" + chipId;
+  btStop();
   WiFi.persistent(false);
   WiFi.mode(WIFI_AP);
 
@@ -392,6 +397,9 @@ void setup()
   Serial.println(F("Started!"));
 
   adminPortal->setfillConfigElementsCallback(fillConfigFormElements);
+
+  // Set the GSM module in sleep mode to preserve power.
+  gprs.setSleepMode(true);
 }
 
 /*****************************************************
@@ -421,19 +429,19 @@ void loop()
   unsigned long currentMillis = millis();
 
   // Most of the time.
-  if (currentMillis - gpsMillis >= 1000UL)
+  if (currentMillis - gpsMillis >= 500UL)
   {
+    DBG_PRN(gpsMillis);
+    DBG_PRNLN(F(" - Read GPS "));
     gpsLib.loop();
     sog = gpsLib.gps.speed.knots();
     gpsMillis = currentMillis;
   }
   // Every 5 seconds
-  if (currentMillis - sensMillis >= 5000UL)
+  if (currentMillis - sensMillis >= 1000UL * 5UL)
   {
     DBG_PRN(sensMillis);
     DBG_PRNLN(F(" - Sensors "));
-    qos = gprs.signalQuality();
-    pwr = gprs.batteryVoltage();
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
@@ -464,7 +472,7 @@ void loop()
     sensMillis = currentMillis;
   }
   // Every 10 seconds.
-  if (currentMillis - smsMillis >= 10000UL)
+  if (currentMillis - smsMillis >= 1000UL * 10UL)
   {
     DBG_PRN(smsMillis);
     DBG_PRN(F(" - Checking SMS: "));
@@ -488,7 +496,7 @@ void loop()
     smsMillis = currentMillis;
   }
   // Every 5 minutes.
-  if (currentMillis - errResMillis >= 300000UL)
+  if (currentMillis - errResMillis >= 1000UL * 60UL * 5UL)
   {
     DBG_PRN(errResMillis);
     DBG_PRNLN(F(" - Resetting error count"));
@@ -497,10 +505,10 @@ void loop()
   }
   // Every X seconds depending on speed.
   if (
-      (sog < 2.0 && ((currentMillis - pubMillis) >= 180000UL)) ||                    // Travelling <= 2 knotsm every 3 minutes.
-      ((sog >= 2.0) && (sog < 14.0) && ((currentMillis - pubMillis) >= 30000UL)) ||  // Travelling between 2 and 14 knots, every 30 seconds.
-      ((sog >= 14.0) && (sog < 23.0) && ((currentMillis - pubMillis) >= 15000UL)) || // Travelling between 14 and 23 knots, every 15 seconds.
-      ((sog >= 23.0) && ((currentMillis - pubMillis) >= 5000UL))                     // Travelling over 23 knots, every 15 seconds.
+      (sog < 2.0 && ((currentMillis - pubMillis) >= 1000UL * 60UL * 3UL)) ||               // Travelling <= 2 knotsm every 3 minutes.
+      ((sog >= 2.0) && (sog < 14.0) && ((currentMillis - pubMillis) >= 1000UL * 30UL)) ||  // Travelling between 2 and 14 knots, every 30 seconds.
+      ((sog >= 14.0) && (sog < 23.0) && ((currentMillis - pubMillis) >= 1000UL * 15UL)) || // Travelling between 14 and 23 knots, every 15 seconds.
+      ((sog >= 23.0) && ((currentMillis - pubMillis) >= 1000UL * 5UL))                     // Travelling over 23 knots, every 5 seconds.
   )
   {
     DBG_PRN(pubMillis);
@@ -525,6 +533,9 @@ void loop()
     {
       DBG_PRNLN(F("Error converting debug to bool."));
     }
+
+    qos = gprs.signalQuality();
+    pwr = gprs.batteryVoltage();
 
     // Generate JSON document.
     jsonDoc["mmsi"].set(config["mmsi"]);
@@ -579,5 +590,19 @@ void loop()
     }
 
     pubMillis = currentMillis;
+  }
+  // Switch off WiFi after a set amount of time.
+  if (currentMillis - wifiMillis >= 1000UL * 60UL * 30UL)
+  {
+    WiFi.mode(WIFI_OFF);
+    wifiEnabled = false;
+    wifiMillis = currentMillis;
+  }
+  // Sleep for 1 second every second.
+  if (!wifiEnabled && currentMillis - sleepMillis >= 1000UL)
+  {
+    sleepMillis = currentMillis;
+    // esp_sleep_enable_timer_wakeup(900000UL);
+    // esp_light_sleep_start();
   }
 }
