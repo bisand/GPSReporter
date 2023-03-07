@@ -6,6 +6,7 @@
 #include "ArduinoJson.h"
 #include <Wire.h>
 #include "AdminPortal.h"
+#include <sstream>
 
 #if SERIAL_TX_BUFFER_SIZE > 16
 #warning To increase available memory, you should set Hardware Serial buffers to 16. (framework-arduinoavr\cores\arduino\HardwareSerial.h)
