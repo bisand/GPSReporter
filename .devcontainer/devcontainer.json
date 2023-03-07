@@ -15,7 +15,11 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"platformio.platformio-ide"
+				"platformio.platformio-ide",
+				"github.vscode-pull-request-github",
+				"github.copilot",
+				"eamodio.gitlens",
+				"ms-vscode.vs-keybindings"
 			]
 		}
 	},
