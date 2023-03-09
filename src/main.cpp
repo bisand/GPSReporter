@@ -260,7 +260,7 @@ void fillConfigFormElements()
     DBG_PRNLN(it->second);
     if (it->first.equalsIgnoreCase("active") || it->first.equalsIgnoreCase("debug"))
       valueType = "checkbox";
-    //adminPortal->addConfigFormElement(String(it->first), String(it->first), String("Boat data"), String(it->second), valueType);
+    // adminPortal->addConfigFormElement(String(it->first), String(it->first), String("Boat data"), String(it->second), valueType);
   }
 
   // Statically map values for Config form provides more control.
@@ -276,9 +276,9 @@ void fillConfigFormElements()
   adminPortal->addConfigFormElement(String("debug"), String("Debug:"), String("Administration"), config["debug"], String("checkbox"));
 }
 /*****************************************************
- * 
+ *
  * More global variables.
- * 
+ *
  *****************************************************/
 uint8_t qos = 99;
 uint16_t pwr = 0;
@@ -305,9 +305,9 @@ unsigned long wifiMillis = 0;
 bool wifiEnabled = true;
 
 /*****************************************************
- * 
+ *
  * SETUP
- * 
+ *
  *****************************************************/
 void setup()
 {
@@ -404,9 +404,9 @@ void setup()
 }
 
 /*****************************************************
- * 
+ *
  * LOOP
- * 
+ *
  *****************************************************/
 void loop()
 {
@@ -438,6 +438,7 @@ void loop()
     sog = gpsLib.gps.speed.knots();
     gpsMillis = currentMillis;
   }
+
   // Every 5 seconds
   if (currentMillis - sensMillis >= 1000UL * 5UL)
   {
@@ -447,7 +448,7 @@ void loop()
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
 
-    heading = 0.0; //getHeading();
+    heading = 0.0; // getHeading();
     lat = gpsLib.gps.location.lat();
     lon = gpsLib.gps.location.lng();
     cog = gpsLib.gps.course.deg();

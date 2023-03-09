@@ -18,8 +18,10 @@
 				"platformio.platformio-ide",
 				"github.vscode-pull-request-github",
 				"github.copilot",
+				"GitHub.copilot-labs",
 				"eamodio.gitlens",
-				"ms-vscode.vs-keybindings"
+				"ms-vscode.vs-keybindings",
+				"ms-vscode.cpptools-extension-pack"
 			]
 		}
 	},
