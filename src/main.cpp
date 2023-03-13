@@ -1,5 +1,7 @@
 #include "debug.h"
 #include "DHT.h"
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include "GPSLib.h"
 #include "GPRSLib.h"
 #include "EEPROM.h"
@@ -19,8 +21,9 @@
 #define TX 9
 #define RESET 25
 
-#define DHTPIN 18     // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+#define ONE_WIRE_BUS 18 // This will override DHT temp sensor and use DALLAS DS18B20 Digital Temperatur Sensor. Comment out this line to use DHT sensor instead.
+#define DHTPIN 18       // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 #define BAUD_SERIAL 115200
 #define BAUD_GPRS 9600
 #define BAUD_GPS 9600
@@ -47,9 +50,15 @@ char dateTime[20];
 
 GPRSLib gprs(gprsBuffer, sizeof(gprsBuffer), RESET, SerialGsm);
 GPSLib gpsLib(SerialGps);
-DHT dht(DHTPIN, DHTTYPE);
-
 AdminPortal *adminPortal;
+
+// Init temperature sensor.
+#ifdef ONE_WIRE_BUS
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+#else
+DHT dht(DHTPIN, DHTTYPE);
+#endif
 
 /*****************************************************
  * Retrieves a PROGMEM constant and return a pointer
@@ -394,7 +403,11 @@ void setup()
   gpsLib.setup(FULL_DEBUG);
 
   // Init Temperature sensor.
+#ifdef ONE_WIRE_BUS
+  sensors.begin();
+#else
   dht.begin();
+#endif
   Serial.println(F("Started!"));
 
   adminPortal->setfillConfigElementsCallback(fillConfigFormElements);
@@ -444,9 +457,17 @@ void loop()
   {
     DBG_PRN(sensMillis);
     DBG_PRNLN(F(" - Sensors "));
+
+#ifdef ONE_WIRE_BUS
+    sensors.requestTemperatures();
+    temp = sensors.getTempCByIndex(0);
+    humi = 0.0;
+    hidx = 0.0;
+#else
     temp = dht.readTemperature();
     humi = dht.readHumidity();
     hidx = dht.computeHeatIndex(temp, humi, false);
+#endif
 
     heading = 0.0; // getHeading();
     lat = gpsLib.gps.location.lat();
