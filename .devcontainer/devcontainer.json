@@ -25,6 +25,13 @@
 			]
 		}
 	},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	},
+	"mounts": [
+		// Mount the host's device to this container's.
+		"source=/dev,target=/dev,type=bind,consistency=consistent"
+	]
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 }
